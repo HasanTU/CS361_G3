@@ -44,6 +44,56 @@
       ? 'http://localhost:5000'
       : window.location.origin;
 
+    // --- Trie Search Helpers ---
+    function walkTrie(trieData, prefix) {
+      if (!trieData || !prefix) return null;
+      const chars = prefix.toLowerCase().split('');
+      let node = trieData;
+      for (const ch of chars) {
+        if (!node[ch]) return new Set();
+        node = node[ch];
+      }
+      return collectTrieIds(node);
+    }
+
+    function collectTrieIds(node) {
+      const ids = new Set(node['$'] || []);
+      for (const [key, child] of Object.entries(node)) {
+        if (key !== '$') {
+          for (const id of collectTrieIds(child)) ids.add(id);
+        }
+      }
+      return ids;
+    }
+
+    // --- Highlight Text Helper ---
+    function HighlightText({ text, query }) {
+      if (!text) return '-';
+      if (!query || !query.trim()) return text;
+
+      const words = query.trim().split(/\s+/).filter(Boolean);
+      if (words.length === 0) return text;
+
+      const escaped = words.map(w => w.replace(/[-[\\]{}()*+?.,\\\\^$|#\\s]/g, '\\\\$&')).join('|');
+      const regex = new RegExp(`(${escaped})`, 'gi');
+      const parts = String(text).split(regex);
+
+      return (
+        <span>
+          {parts.map((part, index) => {
+            const isMatch = words.some(w => w.toLowerCase() === part.toLowerCase());
+            return isMatch ? (
+              <mark key={index} className="bg-[#F5E6B3] text-[#2B251F] font-medium px-0.5 rounded-xs">
+                {part}
+              </mark>
+            ) : (
+              part
+            );
+          })}
+        </span>
+      );
+    }
+
     function StaffDocumentIngestion() {
       const [formData, setFormData] = useState({
         title: '',
@@ -51,6 +101,13 @@
         recipientName: '',
         senderName: ''
       });
+
+      // --- Document Search State ---
+      const [docSearchQuery, setDocSearchQuery] = useState('');
+      const [trieData, setTrieData] = useState(null);
+      const [existingDocs, setExistingDocs] = useState([]);
+      const [searchResults, setSearchResults] = useState([]);
+      const [showSearchResults, setShowSearchResults] = useState(false);
 
       const [uploadedFiles, setUploadedFiles] = useState([]);
       const [activeFileId, setActiveFileId] = useState(null);
@@ -76,6 +133,45 @@
       const containerRef = useRef(null);
 
       const allowedExtensions = ['pdf', 'png', 'jpg', 'jpeg'];
+
+      // Fetch trie + documents for search
+      useEffect(() => {
+        fetch(`${API_BASE_URL}/api/v1/search/trie`)
+          .then(r => r.json())
+          .then(data => setTrieData(data.trie))
+          .catch(() => {});
+        fetch(`${API_BASE_URL}/api/v1/documents`)
+          .then(r => r.json())
+          .then(data => setExistingDocs(data.documents || []))
+          .catch(() => {});
+      }, []);
+
+      // Filter search results
+      useEffect(() => {
+        const trimmed = docSearchQuery.trim();
+        if (!trimmed) {
+          setSearchResults([]);
+          setShowSearchResults(false);
+          return;
+        }
+        const words = trimmed.toLowerCase().split(/\s+/);
+        let resultSet = null;
+        for (const word of words) {
+          const ids = walkTrie(trieData, word);
+          if (ids === null) continue;
+          if (resultSet === null) {
+            resultSet = ids;
+          } else {
+            resultSet = new Set([...resultSet].filter(id => ids.has(id)));
+          }
+        }
+        if (resultSet) {
+          setSearchResults(existingDocs.filter(d => resultSet.has(d.id)));
+        } else {
+          setSearchResults([]);
+        }
+        setShowSearchResults(true);
+      }, [docSearchQuery, trieData, existingDocs]);
 
       const handleInputChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -450,6 +546,56 @@
                   <label className="block text-sm text-[#70675D] font-normal">ไฟล์เอกสาร*</label>
                   {uploadedFiles.length > 0 && (
                     <span className="text-xs text-[#70675D]">({uploadedFiles.length} ไฟล์)</span>
+                  )}
+                </div>
+                {/* Document Search */}
+                <div className="relative mt-2 mb-1">
+                  <div className="flex items-center gap-2 bg-[#F1EDE6] rounded-xl px-3 py-2 border border-transparent focus-within:border-[#C8C1B6] focus-within:bg-[#EBE6DE] transition">
+                    <svg className="w-3.5 h-3.5 text-[#9E9689] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                    </svg>
+                    <input
+                      type="text"
+                      value={docSearchQuery}
+                      onChange={e => setDocSearchQuery(e.target.value)}
+                      placeholder="ค้นหาเอกสาร..."
+                      className="w-full bg-transparent text-[#3D3730] placeholder-[#9E9689] text-xs focus:outline-none"
+                    />
+                    {docSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setDocSearchQuery('')}
+                        className="text-[#9E9689] hover:text-[#3D3730] text-xs cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  {showSearchResults && (
+                    <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-[#E5E0D8] rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                      {searchResults.length === 0 ? (
+                        <p className="text-xs text-[#9E9689] p-3 text-center">ไม่พบเอกสาร</p>
+                      ) : (
+                        searchResults.map(doc => (
+                          <div
+                            key={doc.id}
+                            className="px-3 py-2 hover:bg-[#FAF8F5] cursor-pointer border-b border-[#EFECE6] last:border-b-0 transition"
+                            onClick={() => {
+                              setDocSearchQuery('');
+                              setShowSearchResults(false);
+                              window.open(`${API_BASE_URL}/api/v1/documents/${doc.id}/file`, '_blank');
+                            }}
+                          >
+                            <p className="text-xs text-[#3D3730] font-normal truncate">
+                              <HighlightText text={doc.title} query={docSearchQuery} />
+                            </p>
+                            <p className="text-[10px] text-[#9E9689] font-light">
+                              <HighlightText text={doc.sender} query={docSearchQuery} /> → <HighlightText text={doc.receiver} query={docSearchQuery} />
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   )}
                 </div>
 

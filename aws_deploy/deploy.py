@@ -52,7 +52,7 @@ def main():
     print(f"info: webpage lives at : {website_url}")
     print(f"info: staff Upload Page : {website_url}/html/staff_upload.html")
     print(f"info: lecturer View Page: {website_url}/html/lecturer_view.html")
-    print(f"info: lambda Function URL  : {function_url}/api/v1/documents")
+    print(f"info: API Gateway Endpoint : {function_url}/api/v1/documents")
     print(f"info: s3 Document Storage : s3://{doc_bucket}")
 
 

@@ -18,12 +18,19 @@ This folder (`aws_deploy/`) contains all the tools and configurations to deploy 
 |     - Hosts: staff_upload.html, lecturer_view.html, CSS, JS        |
 +--------------------------------------------------------------------+
                                    |
-                     (AJAX / Fetch API Requests)
+                      (AJAX / Fetch API Requests)
                                    v
 +--------------------------------------------------------------------+
-|  2. AWS Lambda (Fat Lambda + Function URL)                         |
+|  2. AWS API Gateway (HTTP API v2)                                  |
+|     Endpoint: https://<id>.execute-api.us-east-1.amazonaws.com     |
+|     - Routes public traffic with permissive CORS                   |
++--------------------------------------------------------------------+
+                                   |
+                       (AWS_PROXY Integration)
+                                   v
++--------------------------------------------------------------------+
+|  3. AWS Lambda (Fat Lambda Backend)                                |
 |     Function: cs361-g3-backend                                     |
-|     URL: https://<id>.lambda-url.us-east-1.on.aws/api/v1/documents |
 |     - Runs the Flask application                                   |
 |     - Executes under IAM Role: LabRole                             |
 +--------------------------------------------------------------------+
@@ -31,7 +38,7 @@ This folder (`aws_deploy/`) contains all the tools and configurations to deploy 
                   /                                \
                  v                                  v
 +-------------------------------+  +---------------------------------+
-|  3. Amazon S3 (Documents)     |  |  4. MongoDB Atlas (Cloud NoSQL) |
+|  4. Amazon S3 (Documents)     |  |  5. MongoDB Atlas (Cloud NoSQL) |
 |     Bucket:                   |  |     Database: e_mailbox         |
 |     cs361-g3-documents-<ID>   |  |     Collections:                |
 |     - Stores uploaded PDFs &  |  |     - documents                 |
@@ -48,18 +55,18 @@ In your **AWS Learner Lab** console:
 1. Click **"AWS Details"**.
 2. Next to **AWS CLI**, click **"Show"**.
 3. Copy the credentials block (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`).
-4. In your terminal, paste and export them:
-   ```bash
-   export AWS_ACCESS_KEY_ID="ASI..."
-   export AWS_SECRET_ACCESS_KEY="..."
-   export AWS_SESSION_TOKEN="..."
-   export AWS_DEFAULT_REGION="us-east-1"
+4. In your `.env` file, paste and configure them:
+   ```env
+   AWS_DEFAULT_REGION=us-east-1
+   AWS_ACCESS_KEY_ID=ASI...
+   AWS_SECRET_ACCESS_KEY=...
+   AWS_SESSION_TOKEN=...
    ```
 
 ### 2. MongoDB Atlas Connection String
-Ensure you have a MongoDB connection string (e.g. from a free M0 cluster on MongoDB Atlas):
-```bash
-export MONGO_URI="mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/e_mailbox?retryWrites=true&w=majority"
+Ensure you have a MongoDB connection string in `.env`:
+```env
+MONGO_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/e_mailbox?retryWrites=true&w=majority
 ```
 *(Make sure MongoDB Atlas **Network Access** allows `0.0.0.0/0` so AWS Lambda can connect).*
 
@@ -74,13 +81,13 @@ uv run aws_deploy/deploy.py
 ```
 
 The script will automatically:
-1. Connect to AWS using your `LabRole`.
+1. Connect to AWS STS and discover your `LabRole` & Account ID.
 2. Create the **S3 Document Bucket** and upload sample seed PDFs.
 3. Build the lightweight Lambda deployment package with all Python dependencies.
 4. Deploy/Update the **Fat Lambda** function with memory 512MB and 30s timeout.
-5. Configure the **Lambda Function URL** with public CORS.
+5. Provision the **AWS API Gateway HTTP API** with public CORS.
 6. Create the **S3 Frontend Bucket**, configure Static Website Hosting and public read policy.
-7. Inject the Lambda Function URL into the frontend files and upload them to S3.
+7. Inject the API Gateway endpoint into the frontend files and upload them to S3.
 8. Output the live public website URLs!
 
 ---
@@ -100,9 +107,10 @@ When presenting to your instructor or grader, you can demonstrate the following:
 - **S3 Console**:
   - `cs361-g3-frontend-<id>`: Show static website hosting enabled and the uploaded HTML files.
   - `cs361-g3-documents-<id>`: Show the `uploads/` folder containing the uploaded PDFs.
+- **API Gateway Console**:
+  - Show `cs361-g3-api` HTTP API routing `$default` to Lambda with CORS.
 - **Lambda Console**:
   - Open `cs361-g3-backend`.
-  - Show the **Function URL** in the Configuration tab.
   - Show **Environment Variables** (`MONGO_URI`, `S3_BUCKET_NAME`).
   - Show **CloudWatch Logs** (under the "Monitor" tab) to prove live API invocations.
 - **MongoDB Atlas Console**:
@@ -110,12 +118,11 @@ When presenting to your instructor or grader, you can demonstrate the following:
 
 ---
 
-## Troubleshooting
+## How to Teardown (Clean Up)
 
-- **Session Expired in Learner Lab?**
-  When your 4-hour AWS Learner Lab session expires:
-  1. Restart the lab.
-  2. Copy the new credentials from **AWS Details** and export them in terminal.
-  3. Re-run `uv run aws_deploy/deploy.py`. Deployment takes under 20 seconds!
-- **CORS or Network Error?**
-  Ensure MongoDB Atlas Network Access is set to `0.0.0.0/0` (Allow access from anywhere).
+Whenever you want to completely delete all cloud resources:
+
+```bash
+uv run aws_deploy/destroy.py
+```
+Type `yes` when prompted to cleanly remove API Gateway, Lambda, and both S3 buckets.

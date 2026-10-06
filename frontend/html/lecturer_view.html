@@ -378,11 +378,70 @@
       );
     }
 
+    // --- Trie Search Helpers ---
+    function walkTrie(trieData, prefix) {
+      if (!trieData || !prefix) return null;
+      const chars = prefix.toLowerCase().split('');
+      let node = trieData;
+      for (const ch of chars) {
+        if (!node[ch]) return new Set();
+        node = node[ch];
+      }
+      return collectTrieIds(node);
+    }
+
+    function collectTrieIds(node) {
+      const ids = new Set(node['$'] || []);
+      for (const [key, child] of Object.entries(node)) {
+        if (key !== '$') {
+          for (const id of collectTrieIds(child)) ids.add(id);
+        }
+      }
+      return ids;
+    }
+
+    // --- Highlight Text Helper ---
+    function HighlightText({ text, query }) {
+      if (!text) return '-';
+      if (!query || !query.trim()) return text;
+
+      const words = query.trim().split(/\s+/).filter(Boolean);
+      if (words.length === 0) return text;
+
+      const escaped = words.map(w => w.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')).join('|');
+      const regex = new RegExp(`(${escaped})`, 'gi');
+      const parts = String(text).split(regex);
+
+      return (
+        <span>
+          {parts.map((part, index) => {
+            const isMatch = words.some(w => w.toLowerCase() === part.toLowerCase());
+            return isMatch ? (
+              <mark key={index} className="bg-[#F5E6B3] text-[#2B251F] font-medium px-0.5 rounded-xs">
+                {part}
+              </mark>
+            ) : (
+              part
+            );
+          })}
+        </span>
+      );
+    }
+
     function LecturerDocumentViewApp() {
       const [viewState, setViewState] = useState('loading');
       const [documents, setDocuments] = useState([]);
       const [selectedDoc, setSelectedDoc] = useState(null);
       const [isModalOpen, setIsModalOpen] = useState(false);
+
+      // --- Trie Search State ---
+      const [searchQuery, setSearchQuery] = useState('');
+      const [trieData, setTrieData] = useState(null);
+      const [searchMatchIds, setSearchMatchIds] = useState(null);
+
+      const filteredDocuments = searchMatchIds === null
+        ? documents
+        : documents.filter(d => searchMatchIds.has(d.id));
 
       const handleOpenModal = (doc) => {
         setSelectedDoc(doc);
@@ -428,6 +487,35 @@
           isMounted = false;
         };
       }, []);
+
+      // Fetch trie index for search
+      useEffect(() => {
+        fetch(`${API_BASE_URL}/api/v1/search/trie`)
+          .then(r => r.json())
+          .then(data => setTrieData(data.trie))
+          .catch(() => {});
+      }, []);
+
+      // Filter documents when search query changes
+      useEffect(() => {
+        const trimmed = searchQuery.trim();
+        if (!trimmed) {
+          setSearchMatchIds(null);
+          return;
+        }
+        const words = trimmed.toLowerCase().split(/\s+/);
+        let resultSet = null;
+        for (const word of words) {
+          const ids = walkTrie(trieData, word);
+          if (ids === null) continue;
+          if (resultSet === null) {
+            resultSet = ids;
+          } else {
+            resultSet = new Set([...resultSet].filter(id => ids.has(id)));
+          }
+        }
+        setSearchMatchIds(resultSet);
+      }, [searchQuery, trieData]);
 
       return (
         <div className="min-h-screen w-full bg-[#FAF8F5] p-6 sm:p-10 lg:p-14 font-['Prompt',sans-serif] text-[#3D3730] relative">
@@ -491,6 +579,34 @@
             </div>
 
             <div className="w-full bg-white rounded-2xl shadow-xs border border-[#E8E4DC] p-5 sm:p-8 min-h-[480px] flex flex-col justify-start">
+            {/* Search Bar */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 bg-[#F1EDE6] rounded-xl px-4 py-2.5 border border-transparent focus-within:border-[#C8C1B6] focus-within:bg-[#EBE6DE] transition">
+                <svg className="w-4 h-4 text-[#9E9689] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="ค้นหาเอกสาร..."
+                  className="w-full bg-transparent text-[#3D3730] placeholder-[#9E9689] text-sm focus:outline-none"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="text-[#9E9689] hover:text-[#3D3730] text-xs cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              {searchQuery && filteredDocuments.length === 0 && viewState !== 'loading' && (
+                <p className="text-xs text-[#9E9689] mt-2 ml-1">ไม่พบเอกสารที่ตรงกับ "{searchQuery}"</p>
+              )}
+            </div>
+
               <div className="w-full grid grid-cols-12 pb-3 mb-3 border-b border-[#EFECE6] text-xs sm:text-sm text-[#70675D] font-normal select-none">
                 <div className="col-span-12 md:col-span-4 pl-3">ชื่อเรื่อง</div>
                 <div className="hidden md:block md:col-span-3 text-left">วันที่ได้รับ</div>
@@ -529,7 +645,7 @@
 
               {viewState === 'data' && (
                 <div className="space-y-2.5 w-full">
-                  {documents.map((doc) => (
+                  {filteredDocuments.map((doc) => (
                     <div
                       key={doc.id}
                       className="w-full grid grid-cols-12 items-center p-3 sm:p-4 rounded-xl border border-[#EFECE6] bg-white hover:bg-[#FAF8F5] transition duration-150 group"
@@ -539,7 +655,7 @@
                           onClick={() => handleOpenModal(doc)}
                           className="text-xs sm:text-sm text-[#3D3730] hover:text-[#7A7067] font-normal leading-relaxed break-words cursor-pointer"
                         >
-                          {doc.title}
+                          <HighlightText text={doc.title} query={searchQuery} />
                         </span>
                         {doc.files && doc.files.length > 1 && (
                           <span className="ml-2 text-[10px] text-[#70675D] bg-[#EFECE6] px-1.5 py-0.5 rounded-md font-light">
@@ -555,12 +671,12 @@
 
                       <div className="col-span-6 md:col-span-2 text-xs sm:text-sm text-[#70675D] font-light mt-2 md:mt-0">
                         <span className="md:hidden text-[#9E9689] block text-[11px]">ผู้รับ: </span>
-                        {doc.receiver || '-'}
+                        <HighlightText text={doc.receiver} query={searchQuery} />
                       </div>
 
                       <div className="col-span-6 md:col-span-2 text-xs sm:text-sm text-[#70675D] font-light mt-2 md:mt-0 pl-3 md:pl-0">
                         <span className="md:hidden text-[#9E9689] block text-[11px]">ผู้ส่ง: </span>
-                        {doc.sender}
+                        <HighlightText text={doc.sender} query={searchQuery} />
                       </div>
 
                       <div className="col-span-6 md:col-span-1 flex items-center justify-end gap-3 pr-2 mt-2 md:mt-0">
