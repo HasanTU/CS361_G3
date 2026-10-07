@@ -74,7 +74,7 @@
       const words = query.trim().split(/\s+/).filter(Boolean);
       if (words.length === 0) return text;
 
-      const escaped = words.map(w => w.replace(/[-[\\]{}()*+?.,\\\\^$|#\\s]/g, '\\\\$&')).join('|');
+      const escaped = words.map(w => w.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')).join('|');
       const regex = new RegExp(`(${escaped})`, 'gi');
       const parts = String(text).split(regex);
 
