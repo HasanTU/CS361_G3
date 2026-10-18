@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>เข้าสู่ระบบ e-Mailbox | มหาวิทยาลัยธรรมศาสตร์</title>
+  <title>เข้าสู่ระบบ e-Mailbox</title>
   <meta name="description" content="เข้าสู่ระบบ e-Mailbox" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -409,8 +409,8 @@
 
   <script>
     // ===== Demo credentials (replace with real API call) =====
-    // admin: any @tu.ac.th email with password "admin1234" -> staff_upload.html
-    // lecturer: any @tu.ac.th email with password "lecturer1234" -> lecturer_view.html
+    // admin: any @tu.ac.th email with password "a123" -> staff_upload.html
+    // lecturer: any @tu.ac.th email with password "l123" -> lecturer_view.html
     // Using sessionStorage to simulate auth state.
 
     const AUTH_KEY = 'emb_session';
@@ -517,14 +517,14 @@
       return new Promise((resolve, reject) => {
         setTimeout(() => {
           const lowerEmail = email.toLowerCase().trim();
-          if (password === 'admin1234') {
+          if (password === 'a123') {
             resolve({
               email: lowerEmail,
               name: lowerEmail.split('@')[0],
               role: 'admin',
               faculty: 'สำนักงานธุรการ'
             });
-          } else if (password === 'lecturer1234') {
+          } else if (password === 'l123') {
             resolve({
               email: lowerEmail,
               name: 'อาจารย์' + lowerEmail.split('@')[0],

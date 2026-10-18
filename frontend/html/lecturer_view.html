@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>e-Mailbox | มหาวิทยาลัยธรรมศาสตร์</title>
+  <title>e-Mailbox | กล่องเอกสารอาจารย์</title>
   <meta name="description" content="e-Mailbox - กล่องเอกสารอาจารย์" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1089,12 +1089,12 @@
                         {doc.document_date || doc.uploaded_at || '-'}
                       </div>
 
-                      <div className="col-span-6 md:col-span-2 text-xs sm:text-sm text-[#70675D] font-light mt-2 md:mt-0">
+                      <div className="col-span-6 md:col-span-2 text-xs sm:text-sm text-[#70675D] font-light mt-2 md:mt-0 pr-2 break-words break-all">
                         <span className="md:hidden text-[#9E9689] block text-[11px]">ผู้รับ: </span>
                         <HighlightText text={doc.receiver} query={searchQuery} />
                       </div>
 
-                      <div className="col-span-6 md:col-span-2 text-xs sm:text-sm text-[#70675D] font-light mt-2 md:mt-0 pl-3 md:pl-0">
+                      <div className="col-span-6 md:col-span-2 text-xs sm:text-sm text-[#70675D] font-light mt-2 md:mt-0 pl-3 md:pl-0 pr-2 break-words break-all">
                         <span className="md:hidden text-[#9E9689] block text-[11px]">ผู้ส่ง: </span>
                         <HighlightText text={doc.sender} query={searchQuery} />
                       </div>

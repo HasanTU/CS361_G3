@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>อัปโหลดเอกสาร — e-Mailbox | มหาวิทยาลัยธรรมศาสตร์</title>
+  <title>e-Mailbox | เจ้าหน้าที่</title>
   <meta name="description" content="e-Mailbox - เจ้าหน้าที่" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -845,8 +845,8 @@
                             type="button"
                             onClick={() => loadDocumentPreview(item)}
                             className={`w-full border rounded-md py-1 px-1 text-center transition cursor-pointer ${isActive
-                                ? 'bg-[#8C8176] text-white border-[#8C8176]'
-                                : 'border-[#C8C1B6] hover:border-[#8C8176] hover:bg-[#F5F2EC] text-[#554E45]'
+                              ? 'bg-[#8C8176] text-white border-[#8C8176]'
+                              : 'border-[#C8C1B6] hover:border-[#8C8176] hover:bg-[#F5F2EC] text-[#554E45]'
                               }`}
                           >
                             <span className="text-[11px] font-light">
@@ -868,10 +868,10 @@
                 onClick={handleSubmit}
                 disabled={isSubmitting || !isFormValid}
                 className={`w-full py-3.5 px-4 rounded-xl font-normal text-sm transition duration-200 flex items-center justify-center gap-2 ${isSubmitting
-                    ? 'bg-[#8C8176] text-white opacity-90 cursor-wait'
-                    : isFormValid
-                      ? 'bg-[#8C8176] hover:bg-[#7A7067] text-white shadow-sm cursor-pointer'
-                      : 'bg-[#EFECE6] text-[#A39B90] cursor-not-allowed'
+                  ? 'bg-[#8C8176] text-white opacity-90 cursor-wait'
+                  : isFormValid
+                    ? 'bg-[#8C8176] hover:bg-[#7A7067] text-white shadow-sm cursor-pointer'
+                    : 'bg-[#EFECE6] text-[#A39B90] cursor-not-allowed'
                   }`}
               >
                 {isSubmitting ? (
@@ -968,9 +968,8 @@
               <div
                 ref={containerRef}
                 onMouseDown={handleMouseDown}
-                className={`w-full flex-1 bg-white rounded shadow-sm border border-[#E5E0D8] relative overflow-hidden flex items-center justify-center ${
-                  isPreviewActive ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : ''
-                }`}
+                className={`w-full flex-1 bg-white rounded shadow-sm border border-[#E5E0D8] relative overflow-hidden flex items-center justify-center ${isPreviewActive ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : ''
+                  }`}
               >
                 {isPreviewActive && activeFile && !activeFile.isUnsupported ? (
                   <div
