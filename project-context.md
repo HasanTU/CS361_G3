@@ -14,9 +14,9 @@
 
 ## 2. Project Scope & Phasing
 
-### Version 1: Core Distribution (Current Target - MVP)
+### Version 3: Core Distribution (Current Target - MVP)
 
-**ไม่ต้องสนใจเรื่อง role (ไม่มี Auth)**
+**สนใจเรื่องการทำ Authantication**
 
 * **Admin Role (ผู้ลงทะเบียน/ธุรการ):**
   * บันทึกข้อมูลและลงทะเบียนเอกสารเข้า
@@ -109,5 +109,7 @@ G3-projetc/
   POST /api/v1/documents -เจ้าหน้าที่บันทึกข้อมูลเอกสาร (Metadata) และอัปโหลดไฟล์
   GET  /api/v1/documents -อาจารย์ดึงรายการเอกสารทั้งหมดมาแสดงในตาราง
   GET  /api/v1/documents/<id> -ดึงข้อมูลรายละเอียดของเอกสารเพื่อแสดงผลในหน้าต่าง Preview
-  GET  /api/v1/documents/<id>/file -Returns the actual uploaded file so the frontend can view or
-  download it.
+  GET  /api/v1/documents/<id>/file -Returns the actual uploaded file so the frontend can view or download it.
+  DELETE /api/v1/documents/<id> for delete
+  PATCH /api/v1/documents/<id> for edit document
+
