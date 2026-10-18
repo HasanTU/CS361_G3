@@ -190,9 +190,13 @@ class Document:
         mongo_document = updated_model.to_mongo()
         mongo_document.pop("_id")
 
+        update_operations = {"$set": mongo_document}
+        if updated_model.document_type_id is None:
+            update_operations["$unset"] = {"document_type_id": ""}
+
         result = self.collection.update_one(
             {"_id": self.id},
-            {"$set": mongo_document},
+            update_operations,
         )
 
         if result.matched_count:

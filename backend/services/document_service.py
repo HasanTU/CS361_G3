@@ -62,14 +62,45 @@ class DocumentService:
         return Document.find_all()
 
     # Validate and update metadata for an existing registered document.
-    def update_document(self, document_id, changes):
-        """Return the updated model or None when it does not exist."""
+    def update_document(self, document_id, changes, uploaded_file=None):
+        """Update document metadata and optionally replace its file."""
         document = self.get_document(document_id)
         if document is None:
             return None
 
-        if not document.update(**changes):
-            return None
+        if "document_type_id" in changes:
+            document_type_id = changes["document_type_id"]
+            if (
+                document_type_id is not None
+                and DocumentType.find_by_id(document_type_id) is None
+            ):
+                raise ValueError("Document type was not found")
+
+        old_file_path = document.file_path
+        new_file_path = None
+        if uploaded_file is not None:
+            file_metadata = self.file_storage_service.save_file(uploaded_file)
+            new_file_path = file_metadata["file_path"]
+            changes = {
+                **changes,
+                "file_path": new_file_path,
+                "file_name": file_metadata["file_name"],
+                "file_type": file_metadata["file_type"],
+                "file_size": file_metadata["file_size"],
+            }
+
+        try:
+            if not document.update(**changes):
+                if new_file_path is not None:
+                    self.file_storage_service.delete_file(new_file_path)
+                return None
+        except Exception:
+            if new_file_path is not None:
+                self.file_storage_service.delete_file(new_file_path)
+            raise
+
+        if new_file_path is not None:
+            self.file_storage_service.delete_file(old_file_path)
         return document
 
     # Delete both the database record and its stored file.

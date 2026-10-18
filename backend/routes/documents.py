@@ -103,6 +103,61 @@ def get_document_metadata(document_id):
     return jsonify(_document_response(document))
 
 
+# Update document metadata and optionally replace its stored file.
+@documents_bp.patch("/<document_id>")
+def update_document(document_id):
+    changes = request.get_json(silent=True) if request.is_json else request.form.to_dict()
+    changes = changes or {}
+    editable_fields = {
+        "title",
+        "document_date",
+        "sender",
+        "receiver",
+        "document_type_id",
+    }
+    unsupported_fields = set(changes) - editable_fields
+    if unsupported_fields:
+        return _error("Unsupported document fields: " + ", ".join(sorted(unsupported_fields)))
+
+    uploaded_file = request.files.get("file")
+    if not changes and uploaded_file is None:
+        return _error("No document changes were provided")
+
+    if "document_type_id" in changes and not changes["document_type_id"]:
+        changes["document_type_id"] = None
+
+    try:
+        document = document_service.update_document(
+            document_id,
+            changes,
+            uploaded_file=uploaded_file,
+        )
+    except ValueError as error:
+        return _error(str(error))
+
+    if document is None:
+        return jsonify({"error": {"message": "Document was not found"}}), 404
+    return jsonify(
+        {
+            "message": "Document updated successfully",
+            "document": _document_response(document),
+        }
+    )
+
+
+# Delete a document and its stored file.
+@documents_bp.delete("/<document_id>")
+def delete_document(document_id):
+    try:
+        deleted = document_service.delete_document(document_id)
+    except ValueError as error:
+        return _error(str(error))
+
+    if not deleted:
+        return jsonify({"error": {"message": "Document was not found"}}), 404
+    return "", 204
+
+
 # Return the stored file for viewing or downloading.
 @documents_bp.get("/<document_id>/file")
 def get_document_file(document_id):
