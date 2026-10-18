@@ -1,0 +1,63 @@
+/**
+ * auth.js - Shared authentication utility for e-Mailbox
+ * Handles session storage, role checks, and redirect guards.
+ */
+
+const AUTH_KEY = 'emb_session';
+
+const Auth = {
+  setSession(user) {
+    sessionStorage.setItem(AUTH_KEY, JSON.stringify(user));
+  },
+
+  getSession() {
+    try {
+      const raw = sessionStorage.getItem(AUTH_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  clearSession() {
+    sessionStorage.removeItem(AUTH_KEY);
+  },
+
+  isLoggedIn() {
+    return this.getSession() !== null;
+  },
+
+  getRole() {
+    const s = this.getSession();
+    return s ? s.role : null;
+  },
+
+  requireAuth() {
+    if (!this.isLoggedIn()) {
+      window.location.replace('login.html');
+      return false;
+    }
+    return true;
+  },
+
+  requireAdmin() {
+    if (!this.requireAuth()) return false;
+    if (this.getRole() !== 'admin') {
+      sessionStorage.setItem('emb_redirect_notice', 'ไม่มีสิทธิ์เข้าถึงหน้านี้');
+      window.location.replace('lecturer_view.html');
+      return false;
+    }
+    return true;
+  },
+
+  consumeNotice() {
+    const msg = sessionStorage.getItem('emb_redirect_notice');
+    if (msg) sessionStorage.removeItem('emb_redirect_notice');
+    return msg;
+  },
+
+  logout() {
+    this.clearSession();
+    window.location.replace('login.html');
+  }
+};
