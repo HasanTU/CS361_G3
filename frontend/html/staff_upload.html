@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>เจ้าหน้าที่ - ระบบรับส่งเอกสาร (e-Mailbox V1)</title>
+  <title>อัปโหลดเอกสาร — e-Mailbox | มหาวิทยาลัยธรรมศาสตร์</title>
+  <meta name="description" content="e-Mailbox - เจ้าหน้าที่" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap"
+    rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -18,11 +22,28 @@
     }
   </script>
   <link rel="stylesheet" href="../css/style.css" />
+  <!-- Auth guard: admin only — redirect lecturers to their mailbox -->
+  <script>
+    (function () {
+      var AUTH_KEY = 'emb_session';
+      try {
+        var raw = sessionStorage.getItem(AUTH_KEY);
+        if (!raw) { window.location.replace('login.html'); return; }
+        var s = JSON.parse(raw);
+        if (!s || !s.role) { window.location.replace('login.html'); return; }
+        if (s.role !== 'admin') {
+          sessionStorage.setItem('emb_redirect_notice', 'ไม่มีสิทธิ์เข้าถึงหน้านี้');
+          window.location.replace('lecturer_view.html');
+        }
+      } catch (e) { window.location.replace('login.html'); }
+    })();
+  </script>
   <style>
     * {
       box-sizing: border-box;
       font-family: 'Prompt', sans-serif;
     }
+
     body {
       background-color: #FAF8F5;
       color: #3D3730;
@@ -30,16 +51,217 @@
       padding: 0;
       overflow-x: hidden;
     }
+
     input::placeholder {
       color: #9E9689 !important;
     }
+
+    /* ===== NAVBAR ===== */
+    .emb-navbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid #EFECE6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      height: 56px;
+      box-shadow: 0 1px 12px rgba(60, 50, 40, 0.06);
+    }
+
+    .emb-navbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: #2B251F;
+    }
+
+    .emb-navbar-icon {
+      width: 32px;
+      height: 32px;
+      background: #2B251F;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .emb-navbar-icon svg {
+      width: 16px;
+      height: 16px;
+      color: #fff;
+    }
+
+    .emb-navbar-title {
+      font-size: 1rem;
+      font-weight: 500;
+      letter-spacing: -0.2px;
+      color: #2B251F;
+    }
+
+    .emb-navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .emb-navbar-user {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      line-height: 1.3;
+    }
+
+    .emb-navbar-name {
+      font-size: 0.8125rem;
+      font-weight: 400;
+      color: #3D3730;
+    }
+
+    .emb-navbar-role {
+      font-size: 0.6875rem;
+      font-weight: 300;
+      color: #9E9689;
+    }
+
+    .emb-navbar-divider {
+      width: 1px;
+      height: 20px;
+      background: #E8E4DC;
+    }
+
+    .emb-admin-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #F1EDE6;
+      border: 1px solid #D5CEC4;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: #70675D;
+      letter-spacing: 0.1px;
+    }
+
+    .emb-logout-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: 1px solid #E8E4DC;
+      border-radius: 8px;
+      padding: 6px 12px;
+      color: #70675D;
+      font-family: 'Prompt', sans-serif;
+      font-size: 0.8125rem;
+      font-weight: 300;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .emb-logout-btn:hover {
+      background: #FAF8F5;
+      border-color: #C8C1B6;
+      color: #3D3730;
+    }
+
+    .emb-logout-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    @media (max-width: 600px) {
+      .emb-navbar {
+        padding: 0 16px;
+      }
+
+      .emb-navbar-user {
+        display: none;
+      }
+
+      .emb-navbar-divider {
+        display: none;
+      }
+
+      .emb-admin-badge {
+        display: none;
+      }
+    }
   </style>
 </head>
+
 <body class="bg-[#FAF8F5]">
+
+  <!-- Navbar (rendered before React mounts) -->
+  <nav class="emb-navbar" role="navigation" aria-label="Navigation bar">
+    <a href="staff_upload.html" class="emb-navbar-brand" aria-label="e-Mailbox อัปโหลดเอกสาร">
+      <div class="emb-navbar-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+      </div>
+      <span class="emb-navbar-title">e-Mailbox</span>
+    </a>
+
+    <div class="emb-navbar-right">
+      <span class="emb-admin-badge" aria-label="บทบาท: ผู้ดูแลระบบ">
+        <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+        </svg>
+        Admin
+      </span>
+      <div class="emb-navbar-divider" aria-hidden="true"></div>
+      <div class="emb-navbar-user">
+        <span class="emb-navbar-name" id="nav-user-name">กำลังโหลด...</span>
+        <span class="emb-navbar-role" id="nav-user-role">เจ้าหน้าที่</span>
+      </div>
+      <div class="emb-navbar-divider" aria-hidden="true"></div>
+      <button id="nav-logout-btn" class="emb-logout-btn" type="button" aria-label="ออกจากระบบ">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+          stroke-linejoin="round" aria-hidden="true">
+          <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+        ออกจากระบบ
+      </button>
+    </div>
+  </nav>
+
   <div id="root"></div>
 
   <script type="text/babel">
     const { useState, useRef, useEffect, useCallback } = React;
+
+    // ===== Auth Session =====
+    const AUTH_KEY = 'emb_session';
+    function getSession() {
+      try { return JSON.parse(sessionStorage.getItem(AUTH_KEY)); } catch { return null; }
+    }
+
+    // Populate navbar from session
+    (function initNavbar() {
+      const s = getSession();
+      if (!s) return;
+      const nameEl = document.getElementById('nav-user-name');
+      const roleEl = document.getElementById('nav-user-role');
+      if (nameEl) nameEl.textContent = s.name || s.email || '-';
+      if (roleEl) roleEl.textContent = s.faculty || 'เจ้าหน้าที่';
+    })();
+
+    // Logout handler
+    document.getElementById('nav-logout-btn').addEventListener('click', function () {
+      sessionStorage.removeItem(AUTH_KEY);
+      window.location.replace('login.html');
+    });
     const API_BASE_URL = ['null', 'http://localhost:5500', 'http://127.0.0.1:5500'].includes(window.location.origin)
       ? 'http://localhost:5000'
       : window.location.origin;
@@ -139,11 +361,11 @@
         fetch(`${API_BASE_URL}/api/v1/search/trie`)
           .then(r => r.json())
           .then(data => setTrieData(data.trie))
-          .catch(() => {});
+          .catch(() => { });
         fetch(`${API_BASE_URL}/api/v1/documents`)
           .then(r => r.json())
           .then(data => setExistingDocs(data.documents || []))
-          .catch(() => {});
+          .catch(() => { });
       }, []);
 
       // Filter search results
@@ -357,28 +579,36 @@
 
         setIsSubmitting(true);
 
-        const payload = new FormData();
-        payload.append('title', formData.title);
-        payload.append('document_date', formData.receivedDate);
-        payload.append('receiver', formData.recipientName);
-        payload.append('sender', formData.senderName);
-        payload.append('file', uploadedFiles[0].file);
-
         try {
-          const response = await fetch(`${API_BASE_URL}/api/v1/documents`, {
-            method: 'POST',
-            body: payload
+          // Upload all files in the batch
+          const uploadPromises = uploadedFiles.map(fileItem => {
+            const payload = new FormData();
+            payload.append('title', formData.title);
+            payload.append('document_date', formData.receivedDate);
+            payload.append('receiver', formData.recipientName);
+            payload.append('sender', formData.senderName);
+            payload.append('file', fileItem.file);
+
+            return fetch(`${API_BASE_URL}/api/v1/documents`, {
+              method: 'POST',
+              body: payload
+            });
           });
 
-          if (response.ok) {
-            showToast('success', 'บันทึกสำเร็จ');
+          const responses = await Promise.all(uploadPromises);
+          const allOk = responses.every(r => r.ok);
+
+          if (allOk) {
+            const count = uploadedFiles.length;
+            showToast('success', count > 1 ? `บันทึกสำเร็จ (${count} ไฟล์)` : 'บันทึกสำเร็จ');
             resetForm();
           } else {
-            const errorData = await response.json().catch(() => ({}));
+            const failedResp = responses.find(r => !r.ok);
+            const errorData = await failedResp.json().catch(() => ({}));
             showToast(
               'error',
               'Error บันทึกไม่สำเร็จ',
-              errorData.error?.message || `HTTP ${response.status}`
+              errorData.error?.message || `HTTP ${failedResp.status}`
             );
           }
         } catch (error) {
@@ -435,46 +665,7 @@
 
       return (
         <div className="min-h-screen w-full bg-[#FAF8F5] flex flex-col md:flex-row font-['Prompt',sans-serif] text-[#3D3730] relative overflow-x-hidden">
-          {/* Quick Demo Toolbar */}
-          <div className="fixed bottom-3 right-4 z-40 bg-white/95 backdrop-blur border border-[#D5CEC4] rounded-xl px-3 py-2 shadow-md flex items-center gap-2 text-xs">
-            <span className="text-[#70675D] font-medium">Quick Demo:</span>
-            <a
-              href="lecturer_view.html"
-              className="bg-[#EFECE6] text-[#70675D] px-2.5 py-1 rounded-lg hover:bg-[#E2DDD5] transition"
-            >
-              User
-            </a>
-            <a
-              href="staff_upload.html"
-              className="bg-[#8C8176] text-white px-2.5 py-1 rounded-lg transition"
-            >
-              Admin
-            </a>
-            <button
-              onClick={mockFillValid}
-              className="bg-[#8C8176] text-white px-2.5 py-1 rounded-lg hover:bg-[#7A7067] transition"
-            >
-              Fill Valid Form
-            </button>
-            <button
-              onClick={mockFillInvalid}
-              className="bg-[#E08A8A] text-white px-2.5 py-1 rounded-lg hover:bg-[#C97272] transition"
-            >
-              Test Invalid File (.c)
-            </button>
-            <button
-              onClick={() => showToast('success', 'บันทึกสำเร็จ')}
-              className="bg-[#6BBF72] text-white px-2.5 py-1 rounded-lg hover:bg-[#5AA860] transition"
-            >
-              Test Success Toast
-            </button>
-            <button
-              onClick={() => showToast('error', 'Error บันทึกไม่สำเร็จ', 'กรอกรายละเอียดไม่ครบ/ไฟล์ไม่ถูกต้อง')}
-              className="bg-[#F87171] text-white px-2.5 py-1 rounded-lg hover:bg-[#DE5E5E] transition"
-            >
-              Test Error Toast
-            </button>
-          </div>
+          {/* Quick Demo Toolbar hidden — use navbar instead */}
 
           {toast.show && (
             <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 transform scale-100">
@@ -629,9 +820,8 @@
                     return (
                       <div
                         key={item.id}
-                        className={`w-24 h-32 rounded-xl border bg-white flex flex-col items-center justify-between p-2.5 shadow-sm shrink-0 transition relative group ${
-                          isActive ? 'border-[#8C8176] ring-1 ring-[#8C8176]' : 'border-[#E5E0D8]'
-                        }`}
+                        className={`w-24 h-32 rounded-xl border bg-white flex flex-col items-center justify-between p-2.5 shadow-sm shrink-0 transition relative group ${isActive ? 'border-[#8C8176] ring-1 ring-[#8C8176]' : 'border-[#E5E0D8]'
+                          }`}
                       >
                         <button
                           type="button"
@@ -654,11 +844,10 @@
                           <button
                             type="button"
                             onClick={() => loadDocumentPreview(item)}
-                            className={`w-full border rounded-md py-1 px-1 text-center transition cursor-pointer ${
-                              isActive
+                            className={`w-full border rounded-md py-1 px-1 text-center transition cursor-pointer ${isActive
                                 ? 'bg-[#8C8176] text-white border-[#8C8176]'
                                 : 'border-[#C8C1B6] hover:border-[#8C8176] hover:bg-[#F5F2EC] text-[#554E45]'
-                            }`}
+                              }`}
                           >
                             <span className="text-[11px] font-light">
                               {isActive ? 'กำลังดู' : 'ดูเอกสาร'}
@@ -678,13 +867,12 @@
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting || !isFormValid}
-                className={`w-full py-3.5 px-4 rounded-xl font-normal text-sm transition duration-200 flex items-center justify-center gap-2 ${
-                  isSubmitting
+                className={`w-full py-3.5 px-4 rounded-xl font-normal text-sm transition duration-200 flex items-center justify-center gap-2 ${isSubmitting
                     ? 'bg-[#8C8176] text-white opacity-90 cursor-wait'
                     : isFormValid
-                    ? 'bg-[#8C8176] hover:bg-[#7A7067] text-white shadow-sm cursor-pointer'
-                    : 'bg-[#EFECE6] text-[#A39B90] cursor-not-allowed'
-                }`}
+                      ? 'bg-[#8C8176] hover:bg-[#7A7067] text-white shadow-sm cursor-pointer'
+                      : 'bg-[#EFECE6] text-[#A39B90] cursor-not-allowed'
+                  }`}
               >
                 {isSubmitting ? (
                   <>
@@ -817,4 +1005,5 @@
     root.render(<StaffDocumentIngestion />);
   </script>
 </body>
+
 </html>

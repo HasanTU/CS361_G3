@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>อาจารย์ - ระบบรับส่งเอกสาร (e-Mailbox V1)</title>
+  <title>e-Mailbox | มหาวิทยาลัยธรรมศาสตร์</title>
+  <meta name="description" content="e-Mailbox - กล่องเอกสารอาจารย์" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap"
+    rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -18,11 +22,24 @@
     }
   </script>
   <link rel="stylesheet" href="../css/style.css" />
+  <!-- Auth guard: redirect to login if no session -->
+  <script>
+    (function () {
+      var AUTH_KEY = 'emb_session';
+      try {
+        var raw = sessionStorage.getItem(AUTH_KEY);
+        if (!raw) { window.location.replace('login.html'); }
+        var s = JSON.parse(raw);
+        if (!s || !s.role) { window.location.replace('login.html'); }
+      } catch (e) { window.location.replace('login.html'); }
+    })();
+  </script>
   <style>
     * {
       box-sizing: border-box;
       font-family: 'Prompt', sans-serif;
     }
+
     body {
       background-color: #FAF8F5;
       color: #3D3730;
@@ -30,28 +47,277 @@
       padding: 0;
       overflow-x: hidden;
     }
+
     @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
     }
+
     .animate-fade-in {
       animation: fadeIn 0.2s ease-out forwards;
     }
+
     @keyframes shimmer {
-      0% { opacity: 0.5; }
-      50% { opacity: 0.9; }
-      100% { opacity: 0.5; }
+      0% {
+        opacity: 0.5;
+      }
+
+      50% {
+        opacity: 0.9;
+      }
+
+      100% {
+        opacity: 0.5;
+      }
     }
+
     .skeleton-pill {
       animation: shimmer 1.6s ease-in-out infinite;
     }
+
+    /* ===== NAVBAR ===== */
+    .emb-navbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid #EFECE6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      height: 56px;
+      box-shadow: 0 1px 12px rgba(60, 50, 40, 0.06);
+    }
+
+    .emb-navbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: #2B251F;
+    }
+
+    .emb-navbar-icon {
+      width: 32px;
+      height: 32px;
+      background: #2B251F;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .emb-navbar-icon svg {
+      width: 16px;
+      height: 16px;
+      color: #fff;
+    }
+
+    .emb-navbar-title {
+      font-size: 1rem;
+      font-weight: 500;
+      letter-spacing: -0.2px;
+      color: #2B251F;
+    }
+
+    .emb-navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .emb-navbar-user {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      line-height: 1.3;
+    }
+
+    .emb-navbar-name {
+      font-size: 0.8125rem;
+      font-weight: 400;
+      color: #3D3730;
+    }
+
+    .emb-navbar-role {
+      font-size: 0.6875rem;
+      font-weight: 300;
+      color: #9E9689;
+    }
+
+    .emb-navbar-divider {
+      width: 1px;
+      height: 20px;
+      background: #E8E4DC;
+    }
+
+    .emb-logout-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: 1px solid #E8E4DC;
+      border-radius: 8px;
+      padding: 6px 12px;
+      color: #70675D;
+      font-family: 'Prompt', sans-serif;
+      font-size: 0.8125rem;
+      font-weight: 300;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .emb-logout-btn:hover {
+      background: #FAF8F5;
+      border-color: #C8C1B6;
+      color: #3D3730;
+    }
+
+    .emb-logout-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ===== ACCESS DENIED TOAST ===== */
+    .emb-toast {
+      position: fixed;
+      top: 72px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      z-index: 100;
+      background: #2B251F;
+      color: #fff;
+      font-size: 0.8125rem;
+      font-weight: 300;
+      padding: 10px 20px;
+      border-radius: 100px;
+      box-shadow: 0 4px 20px rgba(43, 37, 31, 0.25);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity 0.25s, transform 0.25s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .emb-toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .emb-toast-icon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 600px) {
+      .emb-navbar {
+        padding: 0 16px;
+      }
+
+      .emb-navbar-user {
+        display: none;
+      }
+
+      .emb-navbar-divider {
+        display: none;
+      }
+    }
   </style>
 </head>
+
 <body class="bg-[#FAF8F5]">
+
+  <!-- Navbar (rendered before React mounts) -->
+  <nav class="emb-navbar" role="navigation" aria-label="Navigation bar">
+    <a href="lecturer_view.html" class="emb-navbar-brand" aria-label="e-Mailbox หน้าหลัก">
+      <div class="emb-navbar-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+      </div>
+      <span class="emb-navbar-title">e-Mailbox</span>
+    </a>
+
+    <div class="emb-navbar-right">
+      <div class="emb-navbar-user">
+        <span class="emb-navbar-name" id="nav-user-name">กำลังโหลด...</span>
+        <span class="emb-navbar-role" id="nav-user-role"></span>
+      </div>
+      <div class="emb-navbar-divider" aria-hidden="true"></div>
+      <button id="nav-logout-btn" class="emb-logout-btn" type="button" aria-label="ออกจากระบบ">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+          stroke-linejoin="round" aria-hidden="true">
+          <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+        ออกจากระบบ
+      </button>
+    </div>
+  </nav>
+
+  <!-- Access-denied toast (shown on redirect from admin page) -->
+  <div id="emb-toast" class="emb-toast" role="alert" aria-live="assertive">
+    <svg class="emb-toast-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path fill-rule="evenodd"
+        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+        clip-rule="evenodd" />
+    </svg>
+    <span id="emb-toast-text"></span>
+  </div>
+
   <div id="root"></div>
 
   <script type="text/babel">
     const { useState, useEffect, useRef, useCallback } = React;
+
+    // ===== Auth Session =====
+    const AUTH_KEY = 'emb_session';
+    function getSession() {
+      try { return JSON.parse(sessionStorage.getItem(AUTH_KEY)); } catch { return null; }
+    }
+
+    // Populate navbar from session
+    (function initNavbar() {
+      const s = getSession();
+      if (!s) return;
+      const nameEl = document.getElementById('nav-user-name');
+      const roleEl = document.getElementById('nav-user-role');
+      if (nameEl) nameEl.textContent = s.name || s.email || '-';
+      if (roleEl) roleEl.textContent = s.faculty ? s.faculty : (s.role === 'admin' ? 'เจ้าหน้าที่' : 'อาจารย์');
+    })();
+
+    // Logout handler
+    document.getElementById('nav-logout-btn').addEventListener('click', function () {
+      sessionStorage.removeItem(AUTH_KEY);
+      window.location.replace('login.html');
+    });
+
+    // Show redirect notice if any
+    (function checkNotice() {
+      const msg = sessionStorage.getItem('emb_redirect_notice');
+      if (msg) {
+        sessionStorage.removeItem('emb_redirect_notice');
+        const toast = document.getElementById('emb-toast');
+        const toastTx = document.getElementById('emb-toast-text');
+        toastTx.textContent = msg;
+        toast.classList.add('visible');
+        setTimeout(() => toast.classList.remove('visible'), 3500);
+      }
+    })();
     const API_BASE_URL = ['null', 'http://localhost:5500', 'http://127.0.0.1:5500'].includes(window.location.origin)
       ? 'http://localhost:5000'
       : window.location.origin;
@@ -69,7 +335,7 @@
       const filesList = doc && doc.files && doc.files.length > 0
         ? doc.files
         : doc
-        ? [{
+          ? [{
             id: doc.id || 'f-1',
             name: doc.file_name || doc.fileName || `${doc.title || 'เอกสาร'}.pdf`,
             url: doc.file_url
@@ -78,14 +344,19 @@
             file_type: doc.file_type || doc.fileType || '',
             totalPages: doc.totalPages || 99,
           }]
-        : [];
+          : [];
 
       const activeFile = filesList[currentFileIndex] || filesList[0];
+      const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+      const [isDragging, setIsDragging] = useState(false);
+      const dragStartRef = useRef({ x: 0, y: 0 });
+      const lastWheelTurnRef = useRef(0);
 
       useEffect(() => {
         if (isOpen && doc) {
           setCurrentFileIndex(0);
           setZoom(100);
+          setPanOffset({ x: 0, y: 0 });
           setCurrentPage(1);
           setTotalPages(filesList[0]?.totalPages || 99);
           loadFilePreview(filesList[0]);
@@ -96,6 +367,7 @@
         if (!fileItem) return;
 
         setZoom(100);
+        setPanOffset({ x: 0, y: 0 });
         setCurrentPage(1);
         setTotalPages(fileItem.totalPages || 99);
 
@@ -134,9 +406,13 @@
           const page = await pdf.getPage(pageNum);
           const canvas = canvasRef.current;
           const context = canvas.getContext('2d');
-          const viewport = page.getViewport({ scale: 1.35 });
+          const dpr = window.devicePixelRatio || 1;
+          const baseScale = 1.5;
+          const viewport = page.getViewport({ scale: baseScale * dpr });
           canvas.height = viewport.height;
           canvas.width = viewport.width;
+          canvas.style.width = '100%';
+          canvas.style.height = '100%';
           await page.render({ canvasContext: context, viewport }).promise;
         } catch (error) {
           console.error(error);
@@ -160,12 +436,42 @@
         return () => window.removeEventListener('keydown', handleKeyDown);
       }, [isOpen, currentPage, totalPages, onClose]);
 
+      // Global mouse move & up listeners for fluid dragging
+      useEffect(() => {
+        if (!isDragging) return;
+        const handleMouseMove = (e) => {
+          setPanOffset({
+            x: e.clientX - dragStartRef.current.x,
+            y: e.clientY - dragStartRef.current.y
+          });
+        };
+        const handleMouseUp = () => {
+          setIsDragging(false);
+        };
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+        return () => {
+          window.removeEventListener('mousemove', handleMouseMove);
+          window.removeEventListener('mouseup', handleMouseUp);
+        };
+      }, [isDragging]);
+
       if (!isOpen || !doc) return null;
 
       const handleZoomIn = () => setZoom(p => Math.min(p + 25, 200));
       const handleZoomOut = () => setZoom(p => Math.max(p - 25, 50));
-      const handlePrevPage = () => { if (currentPage > 1) setCurrentPage(p => p - 1); };
-      const handleNextPage = () => { if (currentPage < totalPages) setCurrentPage(p => p + 1); };
+      const handlePrevPage = () => {
+        if (currentPage > 1) {
+          setCurrentPage(p => p - 1);
+          setPanOffset({ x: 0, y: 0 });
+        }
+      };
+      const handleNextPage = () => {
+        if (currentPage < totalPages) {
+          setCurrentPage(p => p + 1);
+          setPanOffset({ x: 0, y: 0 });
+        }
+      };
 
       const handlePrevDocument = () => {
         if (currentFileIndex > 0) {
@@ -173,6 +479,7 @@
           setCurrentFileIndex(nextIndex);
           setTotalPages(filesList[nextIndex].totalPages || 99);
           setCurrentPage(1);
+          setPanOffset({ x: 0, y: 0 });
           loadFilePreview(filesList[nextIndex]);
         }
       };
@@ -183,14 +490,108 @@
           setCurrentFileIndex(nextIndex);
           setTotalPages(filesList[nextIndex].totalPages || 99);
           setCurrentPage(1);
+          setPanOffset({ x: 0, y: 0 });
           loadFilePreview(filesList[nextIndex]);
         }
       };
 
       const handleDownload = (e) => {
         e.stopPropagation();
-        const downloadUrl = `${API_BASE_URL}/api/v1/documents/${doc.id}/file?download=true`;
+        const activeFileItem = filesList[currentFileIndex] || filesList[0];
+        const fileId = (activeFileItem && activeFileItem.id) || doc.id;
+        const downloadUrl = `${API_BASE_URL}/api/v1/documents/${fileId}/file?download=true`;
         window.open(downloadUrl, '_blank');
+      };
+
+      // Mouse drag start
+      const handleMouseDown = (e) => {
+        if (e.button !== 0) return;
+        e.stopPropagation();
+        setIsDragging(true);
+        dragStartRef.current = {
+          x: e.clientX - panOffset.x,
+          y: e.clientY - panOffset.y
+        };
+      };
+
+      // Double-click to toggle zoom between 100% and 140%
+      const handleDoubleClick = (e) => {
+        e.stopPropagation();
+        if (zoom !== 100 || panOffset.x !== 0 || panOffset.y !== 0) {
+          setZoom(100);
+          setPanOffset({ x: 0, y: 0 });
+        } else {
+          setZoom(140);
+        }
+      };
+
+      // Mouse wheel handler: Ctrl+Wheel zooms, zoom > 100 scrolls/pans, zoom <= 100 flips pages
+      const handleWheel = (e) => {
+        e.stopPropagation();
+
+        // Ctrl + wheel or pinch-to-zoom
+        if (e.ctrlKey) {
+          e.preventDefault();
+          if (e.deltaY < 0) {
+            setZoom(prev => Math.min(prev + 15, 200));
+          } else if (e.deltaY > 0) {
+            setZoom(prev => Math.max(prev - 15, 50));
+          }
+          return;
+        }
+
+        // When zoomed in: roll wheel scrolls document vertically (or horizontally with Shift)
+        if (zoom > 100) {
+          e.preventDefault();
+          const scrollFactor = 0.85;
+          const maxBoundY = ((zoom / 100) - 1) * 360;
+          const maxBoundX = ((zoom / 100) - 1) * 260;
+
+          setPanOffset(prev => {
+            let deltaY = e.deltaY;
+            let deltaX = e.deltaX || 0;
+            if (e.shiftKey) {
+              deltaX = deltaY;
+              deltaY = 0;
+            }
+
+            let newY = prev.y - deltaY * scrollFactor;
+            let newX = prev.x - deltaX * scrollFactor;
+
+            newY = Math.max(-maxBoundY - 40, Math.min(maxBoundY + 40, newY));
+            newX = Math.max(-maxBoundX - 40, Math.min(maxBoundX + 40, newX));
+
+            // Page flip at top/bottom boundary
+            const now = Date.now();
+            if (now - lastWheelTurnRef.current > 400) {
+              if (deltaY > 25 && prev.y <= -maxBoundY + 10 && currentPage < totalPages) {
+                lastWheelTurnRef.current = now;
+                setCurrentPage(p => p + 1);
+                return { x: 0, y: maxBoundY };
+              } else if (deltaY < -25 && prev.y >= maxBoundY - 10 && currentPage > 1) {
+                lastWheelTurnRef.current = now;
+                setCurrentPage(p => p - 1);
+                return { x: 0, y: -maxBoundY };
+              }
+            }
+
+            return { x: newX, y: newY };
+          });
+        } else {
+          // Normal zoom: roll wheel flips page
+          const now = Date.now();
+          if (now - lastWheelTurnRef.current > 260) {
+            if (e.deltaY > 20 && currentPage < totalPages) {
+              lastWheelTurnRef.current = now;
+              setCurrentPage(p => p + 1);
+              setPanOffset({ x: 0, y: 0 });
+            } else if (e.deltaY < -20 && currentPage > 1) {
+              lastWheelTurnRef.current = now;
+              setCurrentPage(p => p - 1);
+              setPanOffset({ x: 0, y: 0 });
+            }
+          }
+        }
       };
 
       return (
@@ -244,6 +645,7 @@
           <div
             className="flex-1 flex items-center justify-center p-4 min-h-0 relative cursor-pointer overflow-hidden"
             onClick={onClose}
+            onWheel={handleWheel}
           >
             {filesList.length > 1 && (
               <button
@@ -262,14 +664,20 @@
 
             {/* True Portrait A4 Paper (Height dominant with 1 : 1.4142 portrait ratio) */}
             <div
-              className="h-[74vh] max-h-[750px] w-auto aspect-[1/1.414] max-w-[90vw] bg-white rounded shadow-2xl border border-white/20 relative flex items-center justify-center overflow-hidden transition-transform duration-200 cursor-default shrink-0"
-              style={{ transform: `scale(${zoom / 100})` }}
+              onMouseDown={handleMouseDown}
+              onDoubleClick={handleDoubleClick}
+              className={`h-[74vh] max-h-[750px] w-auto aspect-[1/1.414] max-w-[90vw] bg-white rounded shadow-2xl border border-white/20 relative flex items-center justify-center overflow-hidden transition-transform duration-75 select-none shrink-0 ${isDragging ? 'cursor-grabbing' : (zoom > 100 ? 'cursor-grab' : 'cursor-default')
+                }`}
+              style={{
+                transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom / 100})`,
+                transformOrigin: 'center center'
+              }}
               onClick={(e) => e.stopPropagation()}
             >
               {isPdf && pdfDoc ? (
-                <canvas ref={canvasRef} className="max-w-full max-h-full object-contain" />
+                <canvas ref={canvasRef} className="max-w-full max-h-full object-contain pointer-events-none select-none" />
               ) : isImage && activeFile && activeFile.url ? (
-                <img src={activeFile.url} alt="Preview" className="max-w-full max-h-full object-contain" />
+                <img src={activeFile.url} alt="Preview" className="max-w-full max-h-full object-contain pointer-events-none select-none" />
               ) : (
                 <div className="flex flex-col items-center justify-center text-center p-8 text-[#70675D]">
                   <span className="text-xl sm:text-2xl font-light tracking-wide text-[#70675D]">
@@ -328,6 +736,16 @@
               >
                 +
               </button>
+              {zoom !== 100 && (
+                <button
+                  type="button"
+                  onClick={() => { setZoom(100); setPanOffset({ x: 0, y: 0 }); }}
+                  className="text-[11px] text-white/80 hover:text-white underline ml-1 cursor-pointer transition"
+                  title="รีเซ็ตขนาด"
+                >
+                  รีเซ็ต
+                </button>
+              )}
             </div>
 
             {/* Center: Exactly Centered Page Counter */}
@@ -439,9 +857,35 @@
       const [trieData, setTrieData] = useState(null);
       const [searchMatchIds, setSearchMatchIds] = useState(null);
 
+      function groupDocuments(rawDocs) {
+        const map = new Map();
+        rawDocs.forEach(doc => {
+          const key = `${(doc.title || '').trim()}__${(doc.sender || '').trim()}__${(doc.receiver || '').trim()}__${(doc.document_date || '').trim()}`;
+          const fileEntry = {
+            id: doc.id,
+            name: doc.file_name || `${doc.title || 'เอกสาร'}.pdf`,
+            url: doc.file_url ? new URL(doc.file_url, API_BASE_URL).toString() : `${API_BASE_URL}/api/v1/documents/${doc.id}/file`,
+            file_type: doc.file_type || '',
+            file_size: doc.file_size || 0,
+            uploaded_at: doc.uploaded_at
+          };
+
+          if (map.has(key)) {
+            const existing = map.get(key);
+            existing.files.push(fileEntry);
+          } else {
+            map.set(key, {
+              ...doc,
+              files: [fileEntry]
+            });
+          }
+        });
+        return Array.from(map.values());
+      }
+
       const filteredDocuments = searchMatchIds === null
         ? documents
-        : documents.filter(d => searchMatchIds.has(d.id));
+        : documents.filter(d => searchMatchIds.has(d.id) || (d.files && d.files.some(f => searchMatchIds.has(f.id))));
 
       const handleOpenModal = (doc) => {
         setSelectedDoc(doc);
@@ -454,7 +898,8 @@
       };
 
       const handleDirectDownload = (doc) => {
-        const downloadUrl = `${API_BASE_URL}/api/v1/documents/${doc.id}/file?download=true`;
+        const fileId = (doc.files && doc.files.length > 0) ? doc.files[0].id : doc.id;
+        const downloadUrl = `${API_BASE_URL}/api/v1/documents/${fileId}/file?download=true`;
         window.open(downloadUrl, '_blank');
       };
 
@@ -468,7 +913,8 @@
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const data = await response.json();
-            const list = data.documents || [];
+            const rawList = data.documents || [];
+            const list = groupDocuments(rawList);
 
             if (isMounted) {
               setDocuments(list);
@@ -493,7 +939,7 @@
         fetch(`${API_BASE_URL}/api/v1/search/trie`)
           .then(r => r.json())
           .then(data => setTrieData(data.trie))
-          .catch(() => {});
+          .catch(() => { });
       }, []);
 
       // Filter documents when search query changes
@@ -517,6 +963,11 @@
         setSearchMatchIds(resultSet);
       }, [searchQuery, trieData]);
 
+      // Get session info for display
+      const session = getSession();
+      const displayName = session ? (session.name || session.email || 'อาจารย์') : 'อาจารย์';
+      const displayFaculty = session ? (session.faculty || '') : '';
+
       return (
         <div className="min-h-screen w-full bg-[#FAF8F5] p-6 sm:p-10 lg:p-14 font-['Prompt',sans-serif] text-[#3D3730] relative">
           <DocumentPreviewModal
@@ -525,87 +976,56 @@
             onClose={handleCloseModal}
           />
 
-          {/* Quick Demo Toolbar (Hidden when modal is open to avoid any overlap) */}
-          {!isModalOpen && (
+          {/* Dev state switcher — only visible for developer testing */}
+          {false && (
             <div className="fixed bottom-3 right-4 z-40 bg-white/95 backdrop-blur border border-[#D5CEC4] rounded-xl px-3 py-2 shadow-md flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-[#70675D] font-medium">Quick Demo:</span>
-            <a
-              href="lecturer_view.html"
-              className="bg-[#8C8176] text-white px-2.5 py-1 rounded-lg transition"
-            >
-              User
-            </a>
-            <a
-              href="staff_upload.html"
-              className="bg-[#EFECE6] text-[#70675D] px-2.5 py-1 rounded-lg hover:bg-[#E2DDD5] transition"
-            >
-              Admin
-            </a>
-            <button
-              onClick={() => setViewState('data')}
-              className={`px-2.5 py-1 rounded-lg transition ${
-                viewState === 'data' ? 'bg-[#8C8176] text-white' : 'bg-[#EFECE6] text-[#70675D] hover:bg-[#E2DDD5]'
-              }`}
-            >
-              Show Data
-            </button>
-            <button
-              onClick={() => setViewState('loading')}
-              className={`px-2.5 py-1 rounded-lg transition ${
-                viewState === 'loading' ? 'bg-[#8C8176] text-white' : 'bg-[#EFECE6] text-[#70675D] hover:bg-[#E2DDD5]'
-              }`}
-            >
-              Show Loading Skeleton
-            </button>
-            <button
-              onClick={() => setViewState('empty')}
-              className={`px-2.5 py-1 rounded-lg transition ${
-                viewState === 'empty' ? 'bg-[#8C8176] text-white' : 'bg-[#EFECE6] text-[#70675D] hover:bg-[#E2DDD5]'
-              }`}
-            >
-              Show Empty State
-            </button>
-          </div>
+              <button onClick={() => setViewState('data')} className="bg-[#EFECE6] text-[#70675D] px-2.5 py-1 rounded-lg">Data</button>
+              <button onClick={() => setViewState('loading')} className="bg-[#EFECE6] text-[#70675D] px-2.5 py-1 rounded-lg">Loading</button>
+              <button onClick={() => setViewState('empty')} className="bg-[#EFECE6] text-[#70675D] px-2.5 py-1 rounded-lg">Empty</button>
+            </div>
           )}
 
           <div className="max-w-6xl mx-auto">
             <div className="mb-6 sm:mb-8">
+              <p className="text-xs text-[#9E9689] font-light mb-1 tracking-wide uppercase" style={{ letterSpacing: '0.08em' }}>กล่องเอกสารของฉัน</p>
               <h1 className="text-2xl sm:text-3xl font-normal text-[#4A433B] tracking-tight mb-1">
-                อาจารย์ XXXX
+                {displayName}
               </h1>
-              <p className="text-xs sm:text-sm text-[#70675D] font-light">
-                คณะ: yyy
-              </p>
+              {displayFaculty && (
+                <p className="text-xs sm:text-sm text-[#70675D] font-light">
+                  {displayFaculty}
+                </p>
+              )}
             </div>
 
             <div className="w-full bg-white rounded-2xl shadow-xs border border-[#E8E4DC] p-5 sm:p-8 min-h-[480px] flex flex-col justify-start">
-            {/* Search Bar */}
-            <div className="mb-4">
-              <div className="flex items-center gap-2 bg-[#F1EDE6] rounded-xl px-4 py-2.5 border border-transparent focus-within:border-[#C8C1B6] focus-within:bg-[#EBE6DE] transition">
-                <svg className="w-4 h-4 text-[#9E9689] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                </svg>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="ค้นหาเอกสาร..."
-                  className="w-full bg-transparent text-[#3D3730] placeholder-[#9E9689] text-sm focus:outline-none"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    className="text-[#9E9689] hover:text-[#3D3730] text-xs cursor-pointer"
-                  >
-                    ✕
-                  </button>
+              {/* Search Bar */}
+              <div className="mb-4">
+                <div className="flex items-center gap-2 bg-[#F1EDE6] rounded-xl px-4 py-2.5 border border-transparent focus-within:border-[#C8C1B6] focus-within:bg-[#EBE6DE] transition">
+                  <svg className="w-4 h-4 text-[#9E9689] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="ค้นหาเอกสาร..."
+                    className="w-full bg-transparent text-[#3D3730] placeholder-[#9E9689] text-sm focus:outline-none"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="text-[#9E9689] hover:text-[#3D3730] text-xs cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                {searchQuery && filteredDocuments.length === 0 && viewState !== 'loading' && (
+                  <p className="text-xs text-[#9E9689] mt-2 ml-1">ไม่พบเอกสารที่ตรงกับ "{searchQuery}"</p>
                 )}
               </div>
-              {searchQuery && filteredDocuments.length === 0 && viewState !== 'loading' && (
-                <p className="text-xs text-[#9E9689] mt-2 ml-1">ไม่พบเอกสารที่ตรงกับ "{searchQuery}"</p>
-              )}
-            </div>
 
               <div className="w-full grid grid-cols-12 pb-3 mb-3 border-b border-[#EFECE6] text-xs sm:text-sm text-[#70675D] font-normal select-none">
                 <div className="col-span-12 md:col-span-4 pl-3">ชื่อเรื่อง</div>
@@ -717,4 +1137,5 @@
     root.render(<LecturerDocumentViewApp />);
   </script>
 </body>
+
 </html>
