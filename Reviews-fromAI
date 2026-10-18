@@ -1,0 +1,57 @@
+ขอบคุณครับ คำตอบ reflection ชัดเจนดีครับ โดยเฉพาะเรื่องที่คุณระบุเองว่า data modeling, database design และผลกระทบจากการเปลี่ยน schema เป็นส่วนที่ควรกลับไปทำความเข้าใจเพิ่ม
+
+CS361 V2 Ownership Check — Submission Record
+
+Student: ฮาซัน เจ๊ะหะ
+Student ID: 6709681198
+Team: G900-03
+Repository: https://github.com/Teetad-Aumavichanee/CS361_G3
+Commit/tag: ไม่ได้ระบุ
+Project topic: ระบบ Electronic Mailbox & Document Flow
+V2 requirement: จัดเก็บ metadata/files ของเอกสารและรองรับการจัดการ/ค้นคืนข้อมูลอย่างเป็นระบบ
+
+Question 1
+
+Question asked:
+ใน repo มีหลักฐานจุดใดที่แสดงว่า V2 สามารถรับและจัดเก็บข้อมูลเอกสารแบบ dynamic แล้วนำข้อมูลกลับมาแสดงได้จริง พร้อมอธิบายหลักฐานนั้น
+
+Student answer summary:
+อธิบาย flow จาก frontend ที่ host บน S3 → Lambda → Mongo Atlas สำหรับ metadata และ S3 สำหรับ document files โดย user สามารถเข้าถึงไฟล์ผ่าน metadata ที่ใช้อ้างอิงได้ นอกจากนี้ระบุว่า CRUD ปัจจุบันรองรับการอ่าน/เขียนแล้ว ขณะที่ update กำลัง implement และ delete ยังไม่รองรับ
+
+Follow-up used: No
+Understanding: Clear
+
+Question 2
+
+Question asked:
+ถ้าเพิ่มข้อมูลใน DOCUMENTS ที่เป็น required field จะต้องพิจารณาหรือแก้ส่วนใดของระบบบ้าง และเพราะอะไร
+
+Student answer summary:
+ระบุว่าปัจจุบันทีมเน้น implementation เฉพาะสิ่งจำเป็น ทำให้รายละเอียด field ยังไม่ครบทุกกรณี แต่ครอบคลุมหลาย use case และกล่าวถึง UX เป้าหมายที่ให้ user หา action ที่ต้องการได้ภายใน 3 วินาที คำตอบยังไม่ได้อธิบายผลกระทบของ required field ต่อ data model และส่วนต่าง ๆ ของระบบอย่างชัดเจน
+
+Follow-up used: No
+Understanding: Partial
+
+Question 3
+
+Question asked:
+หากเพิ่มเอกสารสำเร็จและเห็นข้อมูลทันที แต่ refresh แล้วข้อมูลไม่แสดง จะเริ่มตรวจจากจุดไหน และใช้หลักฐานอะไรแยกว่าปัญหาอยู่ส่วนใด
+
+Student answer summary:
+เสนอให้ reproduce bug ก่อนเพื่อ isolate scope จากนั้นพิจารณาจุดที่เกี่ยวข้อง เช่น AWS S3/Mongo Atlas connection, API และ endpoint POST /api/v1/documents รวมถึงตรวจว่าเว็บมีปัญหาระหว่างการกรอกข้อมูลหรือไม่
+
+Follow-up used: No
+Understanding: Clear
+
+Overall result
+
+PARTIAL
+
+Strength shown:
+สามารถอธิบาย architecture/data flow และแนวทาง isolate ปัญหาในระบบ V2 ได้ โดยเฉพาะความสัมพันธ์ระหว่าง frontend, Lambda, Mongo Atlas และ S3
+
+Main point to review:
+Data modeling และ database design โดยเฉพาะผลกระทบของการเพิ่ม/ลด required field หรือ schema ต่อ code, data consistency และการป้องกันข้อมูลเสียหาย
+
+Student reflection:
+คุณระบุว่าข้อ 3 ยากที่สุดเพราะเป็นปัญหาที่ค่อนข้างยากในทางปฏิบัติ และต้องการกลับไปทำความเข้าใจ data modeling, database design, scaling รวมถึงผลกระทบจาก schema changes และการทำให้ระบบไม่เกิดกรณีที่ข้อมูลเสียหาย
