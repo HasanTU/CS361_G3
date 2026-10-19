@@ -81,6 +81,9 @@ Table USERS {
   role string [note: 'ADMIN or USER; supplied by the application for RBAC']
   Note: 'Local profile and authorization data. Production identity/password verification will be supplied by the Thammasat API.'
 }
+(- Test passwords:
+  - Admin: a123
+  - User: l123)
 
 ## 6. Cloud Architecture 
 - Lamda: Backend
@@ -116,6 +119,7 @@ G3-projetc/
 ```
 
 ## 8. API Design
+  POST /api/v1/auth/login -ตรวจสอบ email/password กับ USERS และคืนข้อมูล session user (id, email, name, faculty, role)
   POST /api/v1/documents -เจ้าหน้าที่บันทึกข้อมูลเอกสาร (Metadata) และอัปโหลดไฟล์
   GET  /api/v1/documents -อาจารย์ดึงรายการเอกสารทั้งหมดมาแสดงในตาราง
   GET  /api/v1/documents/<id> -ดึงข้อมูลรายละเอียดของเอกสารเพื่อแสดงผลในหน้าต่าง Preview
