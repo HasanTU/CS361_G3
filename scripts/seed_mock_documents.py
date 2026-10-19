@@ -42,7 +42,6 @@ def seed_documents():
             {
                 "title": document["title"],
                 "document_date": document["document_date"],
-                "receiver": document["receiver"],
             },
             {"$set": document_to_store},
             upsert=True,
