@@ -15,6 +15,7 @@ services:
     environment:
       MONGO_URI: mongodb://mongodb:27017/e_mailbox # Connect to the MongoDB service and database.
       UPLOAD_FOLDER: /app/uploads # Store uploaded files in the container upload directory.
+      SEED_MOCK_USERS: "true" # Seed local mock users only when the USERS collection is empty.
     # Persist uploaded files in the project's local uploads directory.
     volumes:
       - ./uploads:/app/uploads # Mount the host uploads directory into the container.

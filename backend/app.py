@@ -8,6 +8,7 @@ from backend import config
 from backend.routes import auth_bp, documents_bp
 from backend.routes.search import search_bp
 from backend.services.mvp_seed_service import seed_mvp_documents
+from scripts.seed_mock_users import seed_users
 
 
 # Create and configure the Flask application.
@@ -31,6 +32,8 @@ def create_app():
 
     # Add three stakeholder demo documents only to a fresh database.
     seed_mvp_documents()
+    if config.SEED_MOCK_USERS:
+        seed_users()
     return app
 
 
