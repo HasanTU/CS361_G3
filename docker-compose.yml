@@ -18,6 +18,7 @@ services:
     # Persist uploaded files in the project's local uploads directory.
     volumes:
       - ./uploads:/app/uploads # Mount the host uploads directory into the container.
+      - ./frontend:/app/frontend
     # Start the application only after MongoDB reports healthy.
     depends_on:
       # Configure the dependency on the MongoDB service.
@@ -46,3 +47,4 @@ services:
 # Declare the named volume used for persistent MongoDB data.
 volumes:
   mongodb_data: # Store MongoDB data outside the database container lifecycle.
+  

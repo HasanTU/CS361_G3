@@ -368,7 +368,17 @@ export default function LecturerDocumentView({
   const [replacementFile, setReplacementFile] = useState(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editError, setEditError] = useState('');
-  const isAdmin = window.currentUser?.role === 'ADMIN';
+  const [confirmingDelete, setConfirmingDelete] = useState(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const isAdmin = (() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('emb_session'))?.role === 'admin';
+    } catch {
+      return false;
+    }
+  })();
 
   const formatThaiDate = (dateStr) => {
     if (!dateStr) return '';
@@ -480,6 +490,34 @@ export default function LecturerDocumentView({
     }
   };
 
+  const handleRequestDelete = (doc) => {
+    setOpenMenuId(null);
+    setDeleteConfirmation('');
+    setDeleteError('');
+    setConfirmingDelete(doc);
+  };
+
+  const handleDeleteDocument = async () => {
+    if (!confirmingDelete || deleteConfirmation !== confirmingDelete.title) return;
+
+    setIsDeleting(true);
+    setDeleteError('');
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/documents/${confirmingDelete.id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error?.message || 'ลบเอกสารไม่สำเร็จ');
+      }
+
+      setDocuments((current) => current.filter((doc) => doc.id !== confirmingDelete.id));
+      setConfirmingDelete(null);
+    } catch (error) {
+      setDeleteError(error.message || 'ลบเอกสารไม่สำเร็จ');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full bg-[#FAF8F5] p-6 sm:p-10 lg:p-14 font-['Prompt',sans-serif] text-[#3D3730]">
       {/* Preview Modal */}
@@ -488,6 +526,22 @@ export default function LecturerDocumentView({
         isOpen={isPreviewModalOpen}
         onClose={handleClosePreview}
       />
+
+      {confirmingDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-medium text-[#3D3730]">ยืนยันการลบเอกสาร</h2>
+            <p className="mt-3 text-sm text-[#70675D]">การลบนี้ไม่สามารถย้อนกลับได้ พิมพ์ชื่อเอกสารด้านล่างเพื่อยืนยัน:</p>
+            <p className="mt-2 break-words rounded-lg bg-[#F5F2EC] px-3 py-2 text-sm font-medium text-[#3D3730]">{confirmingDelete.title}</p>
+            <input type="text" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} placeholder="พิมพ์ชื่อเอกสารให้ตรงกัน" className="mt-3 w-full rounded-lg border border-[#D5CEC4] px-3 py-2 text-sm text-[#3D3730] focus:outline-none focus:border-[#8C8176]" autoFocus />
+            {deleteError && <p role="alert" className="mt-2 text-sm text-red-600">{deleteError}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setConfirmingDelete(null)} disabled={isDeleting} className="rounded-lg bg-[#EFECE6] px-4 py-2 text-sm text-[#554E45] disabled:opacity-60">ยกเลิก</button>
+              <button type="button" onClick={handleDeleteDocument} disabled={isDeleting || deleteConfirmation !== confirmingDelete.title} className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-50">{isDeleting ? 'กำลังลบ...' : 'ลบเอกสาร'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingDoc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -641,6 +695,9 @@ export default function LecturerDocumentView({
                           <div role="menu" className="absolute right-0 top-full z-20 mt-1 min-w-28 rounded-lg border border-[#E8E4DC] bg-white p-1 shadow-lg">
                             <button type="button" role="menuitem" onClick={() => handleStartEdit(doc)} className="w-full rounded-md px-3 py-2 text-left text-sm text-[#3D3730] hover:bg-[#F5F2EC]">
                               แก้ไขเอกสาร
+                            </button>
+                            <button type="button" role="menuitem" onClick={() => handleRequestDelete(doc)} className="w-full rounded-md px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">
+                              ลบเอกสาร
                             </button>
                           </div>
                         )}
