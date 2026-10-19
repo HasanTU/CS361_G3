@@ -81,9 +81,17 @@ Table USERS {
   role string [note: 'ADMIN or USER; supplied by the application for RBAC']
   Note: 'Local profile and authorization data. Production identity/password verification will be supplied by the Thammasat API.'
 }
-(- Test passwords:
+
+### Test User:
+  - admin1@tu.ac.th
+  - admin2@tu.ac.th
+  - user1@tu.ac.th
+  - user2@tu.ac.th
+  - user3@tu.ac.th
+passwords:
   - Admin: a123
-  - User: l123)
+  - User: l123
+
 
 ## 6. Cloud Architecture 
 - Lamda: Backend
