@@ -334,6 +334,9 @@
         recipientName: '',
         senderName: ''
       });
+      const [recipientUsers, setRecipientUsers] = useState([]);
+      const [showRecipientSuggestions, setShowRecipientSuggestions] = useState(false);
+      const [showEditRecipientSuggestions, setShowEditRecipientSuggestions] = useState(false);
 
       // --- Document Search State ---
       const [docSearchQuery, setDocSearchQuery] = useState('');
@@ -380,6 +383,10 @@
 
       // Fetch trie + documents for search
       useEffect(() => {
+        fetchWithSession(`${API_BASE_URL}/api/v1/auth/users`)
+          .then((response) => response.ok ? response.json() : Promise.reject(new Error('โหลดรายชื่อผู้รับไม่สำเร็จ')))
+          .then((data) => setRecipientUsers(data.users || []))
+          .catch(() => setRecipientUsers([]));
         fetchWithSession(`${API_BASE_URL}/api/v1/search/trie`)
           .then(r => r.json())
           .then(data => setTrieData(data.trie))
@@ -445,6 +452,10 @@
       const handleSaveEdit = async (event) => {
         event.preventDefault();
         if (!editingDoc) return;
+        if (!recipientUsers.some((user) => user.name === editForm.receiver.trim())) {
+          setEditError('กรุณาเลือกผู้รับจากรายชื่อผู้ใช้งานในระบบ');
+          return;
+        }
 
         setIsSavingEdit(true);
         setEditError('');
@@ -658,10 +669,17 @@
       };
 
       const hasAnyUnsupported = uploadedFiles.some(f => f.isUnsupported);
+      const isRecipientValid = recipientUsers.some((user) => user.name === formData.recipientName.trim());
+      const recipientSuggestions = recipientUsers.filter((user) =>
+        user.name.toLowerCase().includes(formData.recipientName.trim().toLowerCase())
+      );
+      const editRecipientSuggestions = recipientUsers.filter((user) =>
+        user.name.toLowerCase().includes(editForm.receiver.trim().toLowerCase())
+      );
       const isFormValid =
         formData.title.trim() !== '' &&
         formData.receivedDate.trim() !== '' &&
-        formData.recipientName.trim() !== '' &&
+        isRecipientValid &&
         formData.senderName.trim() !== '' &&
         uploadedFiles.length > 0 &&
         !hasAnyUnsupported;
@@ -736,7 +754,7 @@
         setFormData({
           title: 'หนังสือขออนุมัติจัดโครงการสัมมนาเชิงปฏิบัติการ',
           receivedDate: '2026-08-30',
-          recipientName: 'ดร.สมชาย ใจดี',
+          recipientName: 'Prapaporn',
           senderName: 'สำนักงานคณบดี'
         });
         const mockBlob = new Blob([
@@ -778,8 +796,33 @@
                   <label className="block text-sm text-[#70675D]">ผู้ส่ง
                     <input required value={editForm.sender} onChange={(e) => setEditForm({ ...editForm, sender: e.target.value })} className="mt-1 w-full rounded-lg border border-[#D5CEC4] px-3 py-2 text-[#3D3730]" />
                   </label>
-                  <label className="block text-sm text-[#70675D]">ผู้รับ
-                    <input required value={editForm.receiver} onChange={(e) => setEditForm({ ...editForm, receiver: e.target.value })} className="mt-1 w-full rounded-lg border border-[#D5CEC4] px-3 py-2 text-[#3D3730]" />
+                  <label className="relative block text-sm text-[#70675D]">ผู้รับ
+                    <input
+                      required
+                      value={editForm.receiver}
+                      onChange={(e) => setEditForm({ ...editForm, receiver: e.target.value })}
+                      onFocus={() => setShowEditRecipientSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowEditRecipientSuggestions(false), 120)}
+                      className="mt-1 w-full rounded-lg border border-[#D5CEC4] px-3 py-2 text-[#3D3730]"
+                    />
+                    {showEditRecipientSuggestions && recipientUsers.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-40 overflow-y-auto rounded-lg border border-[#E5E0D8] bg-white py-1 shadow-lg">
+                        {editRecipientSuggestions.length > 0 ? editRecipientSuggestions.map((user) => (
+                          <button
+                            key={user.name}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                              setEditForm({ ...editForm, receiver: user.name });
+                              setShowEditRecipientSuggestions(false);
+                            }}
+                            className="block w-full px-3 py-2 text-left text-sm text-[#554E45] hover:bg-[#F5F2EC]"
+                          >
+                            {user.name}
+                          </button>
+                        )) : <p className="px-3 py-2 text-xs text-[#9E9689]">ไม่พบชื่อผู้รับ</p>}
+                      </div>
+                    )}
                   </label>
                   <label className="block text-sm text-[#70675D]">เปลี่ยนไฟล์ (ไม่เลือกไฟล์เพื่อใช้ไฟล์เดิม)
                     <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => setReplacementFile(e.target.files?.[0] || null)} className="mt-1 block w-full text-sm" />
@@ -857,14 +900,41 @@
                     className="w-full bg-[#F1EDE6] text-[#3D3730] placeholder-[#9E9689] px-4 py-3 rounded-xl border border-transparent focus:border-[#C8C1B6] focus:bg-[#EBE6DE] focus:outline-none transition text-sm"
                   />
 
-                  <input
-                    id="input-recipient"
-                    type="text"
-                    placeholder="อาจารย์ผู้รับ*"
-                    value={formData.recipientName}
-                    onChange={e => handleInputChange('recipientName', e.target.value)}
-                    className="w-full bg-[#F1EDE6] text-[#3D3730] placeholder-[#9E9689] px-4 py-3 rounded-xl border border-transparent focus:border-[#C8C1B6] focus:bg-[#EBE6DE] focus:outline-none transition text-sm"
-                  />
+                  <div className="relative">
+                    <input
+                      id="input-recipient"
+                      type="text"
+                      placeholder="อาจารย์ผู้รับ*"
+                      value={formData.recipientName}
+                      onChange={e => handleInputChange('recipientName', e.target.value)}
+                      onFocus={() => setShowRecipientSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowRecipientSuggestions(false), 120)}
+                      className="w-full bg-[#F1EDE6] text-[#3D3730] placeholder-[#9E9689] px-4 py-3 rounded-xl border border-transparent focus:border-[#C8C1B6] focus:bg-[#EBE6DE] focus:outline-none transition text-sm"
+                    />
+                    {showRecipientSuggestions && recipientUsers.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-48 overflow-y-auto rounded-xl border border-[#E5E0D8] bg-white py-1 shadow-lg">
+                        {recipientSuggestions.length > 0 ? recipientSuggestions.map((user) => (
+                          <button
+                            key={user.name}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                              handleInputChange('recipientName', user.name);
+                              setShowRecipientSuggestions(false);
+                            }}
+                            className="flex w-full items-center px-3 py-2 text-left text-sm text-[#554E45] transition hover:bg-[#F5F2EC]"
+                          >
+                            <span className="truncate">{user.name}</span>
+                          </button>
+                        )) : (
+                          <p className="px-3 py-2 text-xs text-[#9E9689]">ไม่พบชื่อผู้รับ</p>
+                        )}
+                      </div>
+                    )}
+                    <p className={`mt-1 text-xs font-light ${formData.recipientName && !isRecipientValid ? 'text-red-500' : 'text-[#9E9689]'}`}>
+                      {recipientUsers.length > 0 ? 'เลือกชื่อจากรายชื่อผู้ใช้งานในระบบ' : 'กำลังโหลดรายชื่อผู้ใช้งาน...'}
+                    </p>
+                  </div>
 
                   <input
                     id="input-sender"

@@ -358,6 +358,16 @@ export default function LecturerDocumentView({
   lecturerName = 'อาจารย์ XXXX',
   facultyName = 'คณะ: yyy'
 }) {
+  const sortDocumentsByDate = (documentList) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const distanceFromToday = (document) => {
+      const date = new Date(`${document.document_date}T00:00:00`);
+      return Number.isNaN(date.getTime()) ? Number.POSITIVE_INFINITY : Math.abs(date - today);
+    };
+    return [...documentList].sort((left, right) => distanceFromToday(left) - distanceFromToday(right));
+  };
+
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDocument, setSelectedDocument] = useState(null);
@@ -419,7 +429,7 @@ export default function LecturerDocumentView({
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         if (isMounted) {
-          setDocuments(data.documents || []);
+          setDocuments(sortDocumentsByDate(data.documents || []));
         }
       } catch (err) {
         if (isMounted) {
@@ -485,9 +495,9 @@ export default function LecturerDocumentView({
       const result = await response.json();
       if (!response.ok) throw new Error(result.error?.message || 'อัปเดตเอกสารไม่สำเร็จ');
 
-      setDocuments((current) => current.map((doc) =>
+      setDocuments((current) => sortDocumentsByDate(current.map((doc) =>
         doc.id === editingDoc.id ? result.document : doc
-      ));
+      )));
       setEditingDoc(null);
       setReplacementFile(null);
       showSuccessMessage('Update complete');

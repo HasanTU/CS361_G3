@@ -11,6 +11,8 @@ export default function StaffDocumentIngestion() {
     recipientName: '',
     senderName: ''
   });
+  const [recipientUsers, setRecipientUsers] = useState([]);
+  const [showRecipientSuggestions, setShowRecipientSuggestions] = useState(false);
 
   // Multiple files state: array of { id, file, name, ext, url, isUnsupported }
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -39,6 +41,13 @@ export default function StaffDocumentIngestion() {
   const containerRef = useRef(null);
 
   const allowedExtensions = ['pdf', 'png', 'jpg', 'jpeg'];
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/v1/auth/users`, { credentials: 'include' })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('โหลดรายชื่อผู้รับไม่สำเร็จ')))
+      .then((data) => setRecipientUsers(data.users || []))
+      .catch(() => setRecipientUsers([]));
+  }, []);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -207,10 +216,14 @@ export default function StaffDocumentIngestion() {
   };
 
   const hasAnyUnsupported = uploadedFiles.some(f => f.isUnsupported);
+  const isRecipientValid = recipientUsers.some((user) => user.name === formData.recipientName.trim());
+  const recipientSuggestions = recipientUsers.filter((user) =>
+    user.name.toLowerCase().includes(formData.recipientName.trim().toLowerCase())
+  );
   const isFormValid =
     formData.title.trim() !== '' &&
     formData.receivedDate.trim() !== '' &&
-    formData.recipientName.trim() !== '' &&
+    isRecipientValid &&
     formData.senderName.trim() !== '' &&
     uploadedFiles.length > 0 &&
     !hasAnyUnsupported;
@@ -322,13 +335,38 @@ export default function StaffDocumentIngestion() {
                 className="w-full bg-[#F1EDE6] text-[#3D3730] placeholder-[#9E9689] px-4 py-3 rounded-xl border border-transparent focus:border-[#C8C1B6] focus:bg-[#EBE6DE] focus:outline-none transition text-sm"
               />
 
-              <input
-                type="text"
-                placeholder="อาจารย์ผู้รับ*"
-                value={formData.recipientName}
-                onChange={e => handleInputChange('recipientName', e.target.value)}
-                className="w-full bg-[#F1EDE6] text-[#3D3730] placeholder-[#9E9689] px-4 py-3 rounded-xl border border-transparent focus:border-[#C8C1B6] focus:bg-[#EBE6DE] focus:outline-none transition text-sm"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="อาจารย์ผู้รับ*"
+                  value={formData.recipientName}
+                  onChange={e => handleInputChange('recipientName', e.target.value)}
+                  onFocus={() => setShowRecipientSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowRecipientSuggestions(false), 120)}
+                  className="w-full bg-[#F1EDE6] text-[#3D3730] placeholder-[#9E9689] px-4 py-3 rounded-xl border border-transparent focus:border-[#C8C1B6] focus:bg-[#EBE6DE] focus:outline-none transition text-sm"
+                />
+                {showRecipientSuggestions && recipientUsers.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-48 overflow-y-auto rounded-xl border border-[#E5E0D8] bg-white py-1 shadow-lg">
+                    {recipientSuggestions.length > 0 ? recipientSuggestions.map((user) => (
+                      <button
+                        key={user.name}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          handleInputChange('recipientName', user.name);
+                          setShowRecipientSuggestions(false);
+                        }}
+                        className="flex w-full items-center px-3 py-2 text-left text-sm text-[#554E45] transition hover:bg-[#F5F2EC]"
+                      >
+                        <span className="truncate">{user.name}</span>
+                      </button>
+                    )) : <p className="px-3 py-2 text-xs text-[#9E9689]">ไม่พบชื่อผู้รับ</p>}
+                  </div>
+                )}
+                <p className={`mt-1 text-xs font-light ${formData.recipientName && !isRecipientValid ? 'text-red-500' : 'text-[#9E9689]'}`}>
+                  {recipientUsers.length > 0 ? 'เลือกชื่อจากรายชื่อผู้ใช้งานในระบบ' : 'กำลังโหลดรายชื่อผู้ใช้งาน...'}
+                </p>
+              </div>
 
               <input
                 type="text"

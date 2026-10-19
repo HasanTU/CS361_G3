@@ -2,7 +2,7 @@
 
 from flask import Blueprint, jsonify, request, send_file, url_for
 
-from backend.routes.auth import admin_error, auth_error, get_current_user
+from backend.routes.auth import admin_error, auth_error, get_current_user, is_known_user_name
 from backend.services.document_service import DocumentService
 
 
@@ -60,6 +60,8 @@ def create_document():
         return _error("Missing fields: " + ", ".join(missing_fields))
     if uploaded_file is None:
         return _error("Missing file")
+    if not is_known_user_name(request.form["receiver"]):
+        return _error("Receiver must be an existing user name")
 
     try:
         document = document_service.register_document(
@@ -146,6 +148,8 @@ def update_document(document_id):
 
     if "document_type_id" in changes and not changes["document_type_id"]:
         changes["document_type_id"] = None
+    if "receiver" in changes and not is_known_user_name(changes["receiver"]):
+        return _error("Receiver must be an existing user name")
 
     try:
         document = document_service.update_document(

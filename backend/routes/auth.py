@@ -32,6 +32,25 @@ def logout():
     return jsonify({"message": "Logged out successfully"})
 
 
+@auth_bp.get("/users")
+def list_users():
+    """Return database users that admins may select as document receivers."""
+    user = get_current_user()
+    if user is None:
+        return auth_error()
+    if user.get("role", "").upper() != "ADMIN":
+        return admin_error()
+
+    names = sorted(
+        {
+            record.get("name", "").strip()
+            for record in User.collection.find({}, {"name": 1})
+            if isinstance(record.get("name"), str) and record["name"].strip()
+        }
+    )
+    return jsonify({"users": [{"name": name} for name in names]})
+
+
 def get_current_user():
     """Load the authenticated user represented by the signed session cookie."""
     email = session.get("user_email")
@@ -46,3 +65,12 @@ def auth_error():
 def admin_error():
     """Return the standard response for a non-admin API request."""
     return jsonify({"error": {"message": "Admin access is required"}}), 403
+
+
+def is_known_user_name(name):
+    """Return whether a receiver name exists in the USERS collection."""
+    return (
+        isinstance(name, str)
+        and bool(name.strip())
+        and User.collection.find_one({"name": name.strip()}, {"_id": 1}) is not None
+    )
