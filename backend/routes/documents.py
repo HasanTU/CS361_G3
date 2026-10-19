@@ -2,6 +2,7 @@
 
 from flask import Blueprint, jsonify, request, send_file, url_for
 
+from backend.routes.auth import admin_error, auth_error, get_current_user
 from backend.services.document_service import DocumentService
 
 
@@ -46,6 +47,11 @@ def _error(message):
 # Register a document and save its uploaded file.
 @documents_bp.post("")
 def create_document():
+    user = get_current_user()
+    if user is None:
+        return auth_error()
+    if user.get("role", "").upper() != "ADMIN":
+        return admin_error()
     required_fields = ["title", "document_date", "sender", "receiver"]
     missing_fields = [field for field in required_fields if not request.form.get(field)]
     uploaded_file = request.files.get("file")
@@ -81,7 +87,12 @@ def create_document():
 # Return metadata for every registered document.
 @documents_bp.get("")
 def list_documents():
+    user = get_current_user()
+    if user is None:
+        return auth_error()
     documents = document_service.get_all_documents()
+    if user.get("role", "").upper() != "ADMIN":
+        documents = [document for document in documents if document.receiver == user.get("name")]
     return jsonify(
         {
             "documents": [_document_response(document) for document in documents],
@@ -93,6 +104,9 @@ def list_documents():
 # Return metadata for one registered document.
 @documents_bp.get("/<document_id>")
 def get_document_metadata(document_id):
+    user = get_current_user()
+    if user is None:
+        return auth_error()
     try:
         document = document_service.get_document(document_id)
     except ValueError as error:
@@ -100,12 +114,19 @@ def get_document_metadata(document_id):
 
     if document is None:
         return jsonify({"error": {"message": "Document was not found"}}), 404
+    if user.get("role", "").upper() != "ADMIN" and document.receiver != user.get("name"):
+        return jsonify({"error": {"message": "Document was not found"}}), 404
     return jsonify(_document_response(document))
 
 
 # Update document metadata and optionally replace its stored file.
 @documents_bp.patch("/<document_id>")
 def update_document(document_id):
+    user = get_current_user()
+    if user is None:
+        return auth_error()
+    if user.get("role", "").upper() != "ADMIN":
+        return admin_error()
     changes = request.get_json(silent=True) if request.is_json else request.form.to_dict()
     changes = changes or {}
     editable_fields = {
@@ -148,6 +169,11 @@ def update_document(document_id):
 # Delete a document and its stored file.
 @documents_bp.delete("/<document_id>")
 def delete_document(document_id):
+    user = get_current_user()
+    if user is None:
+        return auth_error()
+    if user.get("role", "").upper() != "ADMIN":
+        return admin_error()
     try:
         deleted = document_service.delete_document(document_id)
     except ValueError as error:
@@ -161,9 +187,14 @@ def delete_document(document_id):
 # Return the stored file for viewing or downloading.
 @documents_bp.get("/<document_id>/file")
 def get_document_file(document_id):
+    user = get_current_user()
+    if user is None:
+        return auth_error()
     try:
         document = document_service.get_document(document_id)
         if document is None:
+            return jsonify({"error": {"message": "Document was not found"}}), 404
+        if user.get("role", "").upper() != "ADMIN" and document.receiver != user.get("name"):
             return jsonify({"error": {"message": "Document was not found"}}), 404
         file_path = document_service.get_document_file(document_id)
     except ValueError as error:

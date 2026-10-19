@@ -293,6 +293,10 @@
       try { return JSON.parse(sessionStorage.getItem(AUTH_KEY)); } catch { return null; }
     }
 
+    function fetchWithSession(url, options = {}) {
+      return fetch(url, { ...options, credentials: 'include' });
+    }
+
     // Populate navbar from session
     (function initNavbar() {
       const s = getSession();
@@ -306,9 +310,13 @@
     })();
 
     // Logout handler
-    document.getElementById('nav-logout-btn').addEventListener('click', function () {
+    document.getElementById('nav-logout-btn').addEventListener('click', async function () {
       sessionStorage.removeItem(AUTH_KEY);
-      window.location.replace('login.html');
+      try {
+        await fetch(`${API_BASE_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' });
+      } finally {
+        window.location.replace('login.html');
+      }
     });
 
     // Show redirect notice if any
@@ -949,7 +957,7 @@
         if (replacementFile) body.append('file', replacementFile);
 
         try {
-          const response = await fetch(`${API_BASE_URL}/api/v1/documents/${editingDoc.id}`, {
+          const response = await fetchWithSession(`${API_BASE_URL}/api/v1/documents/${editingDoc.id}`, {
             method: 'PATCH',
             body,
           });
@@ -984,14 +992,14 @@
         try {
           const fileIds = confirmingDelete.files?.map(file => file.id) || [confirmingDelete.id];
           for (const fileId of fileIds) {
-            const response = await fetch(`${API_BASE_URL}/api/v1/documents/${fileId}`, { method: 'DELETE' });
+            const response = await fetchWithSession(`${API_BASE_URL}/api/v1/documents/${fileId}`, { method: 'DELETE' });
             if (!response.ok) {
               const result = await response.json().catch(() => ({}));
               throw new Error(result.error?.message || 'ลบเอกสารไม่สำเร็จ');
             }
           }
 
-          const response = await fetch(`${API_BASE_URL}/api/v1/documents`);
+          const response = await fetchWithSession(`${API_BASE_URL}/api/v1/documents`);
           if (!response.ok) throw new Error('ลบเอกสารแล้ว แต่โหลดรายการใหม่ไม่สำเร็จ');
           const data = await response.json();
           const updatedDocuments = groupDocuments(data.documents || []);
@@ -1013,7 +1021,7 @@
         async function fetchDocuments() {
           setViewState('loading');
           try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/documents`);
+            const response = await fetchWithSession(`${API_BASE_URL}/api/v1/documents`);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const data = await response.json();
@@ -1040,7 +1048,7 @@
 
       // Fetch trie index for search
       useEffect(() => {
-        fetch(`${API_BASE_URL}/api/v1/search/trie`)
+        fetchWithSession(`${API_BASE_URL}/api/v1/search/trie`)
           .then(r => r.json())
           .then(data => setTrieData(data.trie))
           .catch(() => { });

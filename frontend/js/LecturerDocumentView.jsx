@@ -415,7 +415,7 @@ export default function LecturerDocumentView({
     async function fetchDocuments() {
       setIsLoading(true);
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/documents`);
+        const response = await fetch(`${API_BASE_URL}/api/v1/documents`, { credentials: 'include' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         if (isMounted) {
@@ -479,6 +479,7 @@ export default function LecturerDocumentView({
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/documents/${editingDoc.id}`, {
         method: 'PATCH',
+        credentials: 'include',
         body,
       });
       const result = await response.json();
@@ -510,7 +511,7 @@ export default function LecturerDocumentView({
     setIsDeleting(true);
     setDeleteError('');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/documents/${confirmingDelete.id}`, { method: 'DELETE' });
+      const response = await fetch(`${API_BASE_URL}/api/v1/documents/${confirmingDelete.id}`, { method: 'DELETE', credentials: 'include' });
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
         throw new Error(result.error?.message || 'ลบเอกสารไม่สำเร็จ');

@@ -30,7 +30,7 @@ export default function DocumentSearch({ apiBaseUrl, onResults }) {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    fetch(`${apiBaseUrl}/api/v1/search/trie`)
+    fetch(`${apiBaseUrl}/api/v1/search/trie`, { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
         setTrieData(data.trie);

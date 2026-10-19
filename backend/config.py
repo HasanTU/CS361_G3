@@ -7,6 +7,9 @@ import os
 # Store the MongoDB connection string used by the backend.
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/e_mailbox")
 
+# Sign the server-side login session cookie. Set a stable value in deployment.
+SECRET_KEY = os.getenv("SECRET_KEY", "e-mailbox-development-secret")
+
 # Store the directory used for uploaded documents.
 UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads")
 

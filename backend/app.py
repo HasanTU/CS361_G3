@@ -23,7 +23,8 @@ def create_app():
 
     # Load settings such as the MongoDB URI and upload folder.
     app.config.from_object(config)
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    app.secret_key = config.SECRET_KEY
+    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
     app.json.ensure_ascii = False
 
     # Register document API routes under /api/v1/documents.
