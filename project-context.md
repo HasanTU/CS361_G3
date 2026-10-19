@@ -127,3 +127,5 @@ G3-projetc/
   DELETE /api/v1/documents/<id> for delete
   PATCH /api/v1/documents/<id> for edit document
 
+Docker Compose runs the mock user seed when `SEED_MOCK_USERS=true` and the `USERS` collection is empty. It also runs the mock document seed when `SEED_MOCK_DOCUMENTS=true`; document seeding skips safely until all files listed in `data/mock_documents.json` exist in `uploads/`.
+

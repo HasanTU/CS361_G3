@@ -13,3 +13,4 @@ UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads")
 # Enable only for local mock authentication; production should disable this
 # when authentication is delegated to the Thammasat API.
 SEED_MOCK_USERS = os.getenv("SEED_MOCK_USERS", "false").lower() == "true"
+SEED_MOCK_DOCUMENTS = os.getenv("SEED_MOCK_DOCUMENTS", "false").lower() == "true"
