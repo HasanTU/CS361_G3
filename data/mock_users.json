@@ -2,35 +2,35 @@
   {
     "email": "admin1@tu.ac.th",
     "password_hash": "scrypt:32768:8:1$Gz9ylPikoNhpzq2v$ab25e2e6c10e53eccc7b9f59fdbf910be2e6874a5b8b5a660cf5047850e73462eaaab49523f7e72ace13ba5b6675c8b68aa6d8fe572a544940bee0e299e055d3",
-    "name": "สมชาย ใจดี",
+    "name": "Kasidit",
     "role": "ADMIN",
     "faculty": "สำนักงานธุรการ"
   },
   {
     "email": "admin2@tu.ac.th",
     "password_hash": "scrypt:32768:8:1$YX5MZdnzvmIruFtn$c3e6cf4ed5b57617e47e4af75f8c4bede1fa3bee2f203769bc9a0d4f928667d84d9db7a578a4dd6e18c056d7eaa7cc8068119b5f40478a9e80b618a5bb55c333",
-    "name": "กนกวรรณ ศรีสุข",
+    "name": "Saowaluk",
     "role": "ADMIN",
     "faculty": "สำนักงานเลขานุการคณะ"
   },
   {
     "email": "user1@tu.ac.th",
     "password_hash": "scrypt:32768:8:1$mJ3wOmANoRLZuU5m$2c960adc44e90bb5a770c879632031e559b32b1738d4ee1e9933a397ceaa697a46295f817910b86faad4560d307991d1174959d4293ac71ae313f1d1114763dc",
-    "name": "อนุชา เกษมสุข",
+    "name": "Prapaporn",
     "role": "USER",
     "faculty": "คณะวิทยาศาสตร์และเทคโนโลยี"
   },
   {
     "email": "user2@tu.ac.th",
     "password_hash": "scrypt:32768:8:1$cTQsXRKIoxHif7Ld$004f65d85183ffcb147ba76498702bf3226d95e232a0d0a63519cf4596cdc6159b0d9a137491ab1052763af9fe4d8cdea10fb374b1d506fdcf99efee2b31eb7e",
-    "name": "พิมพ์ชนก รัตนากร",
+    "name": "Songsakdi",
     "role": "USER",
     "faculty": "คณะศิลปศาสตร์"
   },
   {
     "email": "user3@tu.ac.th",
     "password_hash": "scrypt:32768:8:1$UfuGdrzNCLqidJR1$f7a636f1d24923b84eed82b6736fb2d76816ae91fe6674f4e123aecb416889d73167ee91de372e7ccdd4c369ca93937f86c7a2a5ed7b890b69bfd16df4e257f6",
-    "name": "ธนวีย์ มณีรัตน์",
+    "name": "Wilawan",
     "role": "USER",
     "faculty": "คณะวิศวกรรมศาสตร์"
   }

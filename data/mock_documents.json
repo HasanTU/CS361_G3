@@ -1,0 +1,56 @@
+[
+  {
+    "title": "ประกาศกำหนดการประชุมคณะกรรมการประจำเดือน",
+    "document_date": "2026-01-15",
+    "sender": "สำนักงานเลขานุการคณะ",
+    "receiver": "user1@tu.ac.th",
+    "file_path": "uploads/3.Bootable_USB.pdf",
+    "file_name": "3.Bootable_USB.pdf",
+    "uploaded_by": "admin1@tu.ac.th"
+  },
+  {
+    "title": "หนังสือเชิญเข้าร่วมอบรมการจัดการเรียนการสอน",
+    "document_date": "2026-02-03",
+    "sender": "ฝ่ายวิชาการ คณะวิทยาศาสตร์และเทคโนโลยี",
+    "receiver": "user1@tu.ac.th",
+    "file_path": "uploads/5_BasicLinux.pdf",
+    "file_name": "5_BasicLinux.pdf",
+    "uploaded_by": "admin2@tu.ac.th"
+  },
+  {
+    "title": "แจ้งกำหนดส่งผลการประเมินการเรียนการสอน",
+    "document_date": "2026-01-22",
+    "sender": "งานทะเบียนและประเมินผล",
+    "receiver": "user2@tu.ac.th",
+    "file_path": "uploads/6.BasicShell.pdf",
+    "file_name": "6.BasicShell.pdf",
+    "uploaded_by": "admin1@tu.ac.th"
+  },
+  {
+    "title": "เอกสารขออนุมัติจัดโครงการสัมมนาวิชาการ",
+    "document_date": "2026-02-12",
+    "sender": "ศูนย์บริการวิชาการ",
+    "receiver": "user2@tu.ac.th",
+    "file_path": "uploads/7.ShellHistory_Directory.pdf",
+    "file_name": "7.ShellHistory_Directory.pdf",
+    "uploaded_by": "admin2@tu.ac.th"
+  },
+  {
+    "title": "กำหนดการตรวจประกันคุณภาพการศึกษาภายใน",
+    "document_date": "2026-01-29",
+    "sender": "สำนักงานประกันคุณภาพการศึกษา",
+    "receiver": "user3@tu.ac.th",
+    "file_path": "uploads/8.FilePermissionpdf.pdf",
+    "file_name": "8.FilePermissionpdf.pdf",
+    "uploaded_by": "admin1@tu.ac.th"
+  },
+  {
+    "title": "ขอข้อมูลประกอบการจัดทำรายงานประจำปี",
+    "document_date": "2026-02-18",
+    "sender": "ฝ่ายแผนงานและพัฒนาองค์กร",
+    "receiver": "user3@tu.ac.th",
+    "file_path": "uploads/9_FileManagement.pdf",
+    "file_name": "9_FileManagement.pdf",
+    "uploaded_by": "admin2@tu.ac.th"
+  }
+]
