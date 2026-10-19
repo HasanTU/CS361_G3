@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>เข้าสู่ระบบ e-Mailbox</title>
+  <meta name="description" content="เข้าสู่ระบบ e-Mailbox" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-page: #f2f0ec;
+      --card-bg: #ffffff;
+      --input-bg: #ece7e1;
+      --input-bg-focus: #e5dfd7;
+      --text-title: #6e655b;
+      --text-label: #736b62;
+      --text-placeholder: #b2aaa0;
+      --text-dark: #2d2722;
+      --text-note: #8f867c;
+      --btn-bg: #8e867d;
+      --btn-hover: #7a736a;
+      --error-color: #c0392b;
+      --error-bg: #fdf2f2;
+      --error-border: #f5c6cb;
+    }
+
+    html,
+    body {
+      min-height: 100vh;
+      font-family: 'Prompt', sans-serif;
+      background-color: var(--bg-page);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      color: var(--text-dark);
+    }
+
+    /* ===== LOGIN CARD ===== */
+    .login-container {
+      width: 100%;
+      max-width: 900px;
+      min-height: 520px;
+      background: var(--card-bg);
+      border-radius: 14px;
+      box-shadow: 0 10px 36px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.03);
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ===== LEFT PANEL (FORM) ===== */
+    .login-panel-left {
+      flex: 1;
+      width: 50%;
+      padding: 52px 48px 32px 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: #ffffff;
+      z-index: 2;
+    }
+
+    .login-content-top {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .login-title {
+      font-size: 1.65rem;
+      font-weight: 400;
+      color: var(--text-title);
+      letter-spacing: -0.2px;
+      margin-top: 14px;
+      margin-bottom: 40px;
+    }
+
+    /* Form Elements */
+    .login-form {
+      width: 100%;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 400;
+      color: var(--text-label);
+      margin-bottom: 6px;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .form-input {
+      width: 100%;
+      height: 44px;
+      background: var(--input-bg);
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 0 16px;
+      font-family: 'Prompt', sans-serif;
+      font-size: 0.875rem;
+      font-weight: 300;
+      color: var(--text-dark);
+      outline: none;
+      transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+      -webkit-appearance: none;
+    }
+
+    .form-input::placeholder {
+      color: var(--text-placeholder);
+      font-weight: 300;
+    }
+
+    .form-input:focus {
+      background: var(--input-bg-focus);
+      border-color: #cfc6bc;
+      box-shadow: 0 0 0 2px rgba(142, 134, 125, 0.15);
+    }
+
+    .form-input.has-error {
+      background: var(--error-bg);
+      border-color: var(--error-border);
+      color: var(--error-color);
+    }
+
+    .form-input.has-error::placeholder {
+      color: #df9898;
+    }
+
+    /* Password eye toggle */
+    .form-input.pw-input {
+      padding-right: 44px;
+    }
+
+    .pw-toggle {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-label);
+      opacity: 0.8;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.2s, color 0.2s;
+    }
+
+    .pw-toggle:hover {
+      opacity: 1;
+      color: var(--text-dark);
+    }
+
+    .pw-toggle svg {
+      width: 19px;
+      height: 19px;
+      pointer-events: none;
+    }
+
+    /* Field error text */
+    .field-error {
+      display: none;
+      font-size: 0.75rem;
+      color: var(--error-color);
+      font-weight: 300;
+      margin-top: 4px;
+      padding-left: 2px;
+    }
+
+    .field-error.visible {
+      display: block;
+    }
+
+    /* Global error message banner */
+    .error-banner {
+      display: none;
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+      color: var(--error-color);
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-size: 0.8125rem;
+      font-weight: 300;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    .error-banner.visible {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Button area - right-aligned pill button */
+    .btn-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+
+    .btn-submit {
+      background: var(--btn-bg);
+      color: #ffffff;
+      border: none;
+      border-radius: 9999px;
+      padding: 7px 22px;
+      font-family: 'Prompt', sans-serif;
+      font-size: 0.8125rem;
+      font-weight: 400;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      background: var(--btn-hover);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    .btn-submit:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Bottom note */
+    .login-footnote {
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 300;
+      color: var(--text-note);
+      margin-top: 36px;
+      letter-spacing: 0.1px;
+    }
+
+    /* ===== RIGHT PANEL (IMAGE) ===== */
+    .login-panel-right {
+      flex: 1;
+      width: 50%;
+      position: relative;
+      overflow: hidden;
+      background-color: #e6e3dd;
+    }
+
+    .login-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 25%;
+      display: block;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 768px) {
+      body {
+        padding: 16px;
+        align-items: flex-start;
+      }
+
+      .login-container {
+        flex-direction: column-reverse;
+        max-width: 440px;
+        min-height: auto;
+      }
+
+      .login-panel-left {
+        width: 100%;
+        padding: 36px 28px 28px 28px;
+      }
+
+      .login-panel-right {
+        width: 100%;
+        height: 200px;
+        flex: none;
+      }
+
+      .login-title {
+        font-size: 1.45rem;
+        margin-top: 0;
+        margin-bottom: 28px;
+      }
+
+      .login-footnote {
+        margin-top: 24px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="login-container" role="main">
+    <!-- LEFT PANEL: LOGIN FORM -->
+    <div class="login-panel-left">
+      <div class="login-content-top">
+        <h1 class="login-title">เข้าสู่ระบบ e-Mailbox</h1>
+
+        <!-- Global Error Banner -->
+        <div id="error-banner" class="error-banner" role="alert" aria-live="polite">
+          <svg style="width:16px;height:16px;flex-shrink:0" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+              clip-rule="evenodd" />
+          </svg>
+          <span id="error-banner-text"></span>
+        </div>
+
+        <form class="login-form" id="login-form" novalidate>
+          <!-- Username / Email Field -->
+          <div class="form-group">
+            <label class="form-label" for="input-email">บัญชีผู้ใช้</label>
+            <div class="input-wrapper">
+              <input type="email" id="input-email" name="email" class="form-input" placeholder="อีเมลมหาวิทยาลัย"
+                autocomplete="email" spellcheck="false" required />
+            </div>
+            <span class="field-error" id="email-error" role="alert"></span>
+          </div>
+
+          <!-- Password Field -->
+          <div class="form-group">
+            <label class="form-label" for="input-password">รหัสผ่าน</label>
+            <div class="input-wrapper">
+              <input type="password" id="input-password" name="password" class="form-input pw-input"
+                placeholder="รหัสผ่าน" autocomplete="current-password" required />
+              <button type="button" id="pw-toggle-btn" class="pw-toggle" aria-label="แสดง/ซ่อนรหัสผ่าน"
+                title="แสดง/ซ่อนรหัสผ่าน">
+                <!-- Eye Outline Icon -->
+                <svg id="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <!-- Eye Off Icon -->
+                <svg id="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round" stroke-linejoin="round" style="display:none">
+                  <path
+                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24">
+                  </path>
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+              </button>
+            </div>
+            <span class="field-error" id="password-error" role="alert"></span>
+          </div>
+
+          <!-- Submit Button (Right Aligned) -->
+          <div class="btn-row">
+            <button type="submit" id="btn-login" class="btn-submit">
+              <span id="btn-login-text">เข้าสู่ระบบ</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Footnote -->
+      <p class="login-footnote">*ใช้บัญชีเครือข่ายมหาวิทยาลัยในการเข้าใช้งานเท่านั้น</p>
+    </div>
+
+    <!-- RIGHT PANEL: THAMMASAT DOME IMAGE -->
+    <div class="login-panel-right" aria-hidden="true">
+      <img class="login-image" src="https://tu.ac.th/app/uploads/2025/08/DSC_3623_HDR-2048x1360.jpg"
+        alt="อาคารโดม มหาวิทยาลัยธรรมศาสตร์ ศูนย์รังสิต" loading="eager" />
+    </div>
+  </div>
+
+  <script>
+    // ===== Demo credentials (replace with real API call) =====
+    // admin: any @tu.ac.th email with password "a123" -> staff_upload.html
+    // lecturer: any @tu.ac.th email with password "l123" -> lecturer_view.html
+    // Using sessionStorage to simulate auth state.
+
+    const AUTH_KEY = 'emb_session';
+
+    const loginForm = document.getElementById('login-form');
+    const emailInput = document.getElementById('input-email');
+    const passwordInput = document.getElementById('input-password');
+    const btnLogin = document.getElementById('btn-login');
+    const btnLoginText = document.getElementById('btn-login-text');
+    const emailError = document.getElementById('email-error');
+    const passwordError = document.getElementById('password-error');
+    const errorBanner = document.getElementById('error-banner');
+    const errorBannerText = document.getElementById('error-banner-text');
+    const pwToggleBtn = document.getElementById('pw-toggle-btn');
+    const iconEye = document.getElementById('icon-eye');
+    const iconEyeOff = document.getElementById('icon-eye-off');
+
+    // Redirect if already logged in
+    (function checkAlreadyLoggedIn() {
+      try {
+        const s = sessionStorage.getItem(AUTH_KEY);
+        if (s) {
+          const session = JSON.parse(s);
+          if (session && session.role) {
+            if (session.role === 'admin') {
+              window.location.replace('staff_upload.html');
+            } else {
+              window.location.replace('lecturer_view.html');
+            }
+          }
+        }
+      } catch (e) { }
+    })();
+
+    // ===== Password visibility toggle =====
+    pwToggleBtn.addEventListener('click', function () {
+      const isPassword = passwordInput.type === 'password';
+      passwordInput.type = isPassword ? 'text' : 'password';
+      iconEye.style.display = isPassword ? 'none' : '';
+      iconEyeOff.style.display = isPassword ? '' : 'none';
+      passwordInput.focus();
+    });
+
+    // ===== Validation helpers =====
+    function showFieldError(input, errorEl, msg) {
+      input.classList.add('has-error');
+      errorEl.textContent = msg;
+      errorEl.classList.add('visible');
+    }
+
+    function clearFieldError(input, errorEl) {
+      input.classList.remove('has-error');
+      errorEl.textContent = '';
+      errorEl.classList.remove('visible');
+    }
+
+    function showBannerError(msg) {
+      errorBannerText.textContent = msg;
+      errorBanner.classList.add('visible');
+    }
+
+    function hideBannerError() {
+      errorBanner.classList.remove('visible');
+    }
+
+    function isValidEmail(val) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
+    }
+
+    function isTUEmail(val) {
+      return val.trim().toLowerCase().endsWith('@tu.ac.th');
+    }
+
+    // Clear field errors on input
+    emailInput.addEventListener('input', function () {
+      clearFieldError(emailInput, emailError);
+      hideBannerError();
+    });
+
+    passwordInput.addEventListener('input', function () {
+      clearFieldError(passwordInput, passwordError);
+      hideBannerError();
+    });
+
+    // ===== Set loading state =====
+    function setLoading(loading) {
+      if (loading) {
+        btnLogin.innerHTML = '';
+        const spinner = document.createElement('span');
+        spinner.className = 'spinner';
+        btnLogin.appendChild(spinner);
+        const txt = document.createElement('span');
+        txt.textContent = 'เข้าสู่ระบบ...';
+        btnLogin.appendChild(txt);
+        btnLogin.disabled = true;
+      } else {
+        btnLogin.innerHTML = '<span id="btn-login-text">เข้าสู่ระบบ</span>';
+        btnLogin.disabled = false;
+      }
+    }
+
+    // ===== Mock auth (replace with real API) =====
+    function mockAuthenticate(email, password) {
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          const lowerEmail = email.toLowerCase().trim();
+          if (password === 'a123') {
+            resolve({
+              email: lowerEmail,
+              name: lowerEmail.split('@')[0],
+              role: 'admin',
+              faculty: 'สำนักงานธุรการ'
+            });
+          } else if (password === 'l123') {
+            resolve({
+              email: lowerEmail,
+              name: 'อาจารย์' + lowerEmail.split('@')[0],
+              role: 'lecturer',
+              faculty: 'คณะวิทยาศาสตร์และเทคโนโลยี'
+            });
+          } else {
+            reject(new Error('รหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง'));
+          }
+        }, 800);
+      });
+    }
+
+    // ===== Form submit =====
+    loginForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      hideBannerError();
+
+      const emailVal = emailInput.value.trim();
+      const pwVal = passwordInput.value;
+      let hasError = false;
+
+      // Email validation
+      if (!emailVal) {
+        showFieldError(emailInput, emailError, 'กรุณากรอกอีเมลมหาวิทยาลัย');
+        hasError = true;
+      } else if (!isValidEmail(emailVal)) {
+        showFieldError(emailInput, emailError, 'รูปแบบอีเมลไม่ถูกต้อง');
+        hasError = true;
+      } else if (!isTUEmail(emailVal)) {
+        showFieldError(emailInput, emailError, 'กรุณาใช้อีเมลมหาวิทยาลัย (@tu.ac.th)');
+        hasError = true;
+      } else {
+        clearFieldError(emailInput, emailError);
+      }
+
+      // Password validation
+      if (!pwVal) {
+        showFieldError(passwordInput, passwordError, 'กรุณากรอกรหัสผ่าน');
+        hasError = true;
+      } else {
+        clearFieldError(passwordInput, passwordError);
+      }
+
+      if (hasError) return;
+
+      setLoading(true);
+
+      try {
+        const session = await mockAuthenticate(emailVal, pwVal);
+        sessionStorage.setItem(AUTH_KEY, JSON.stringify(session));
+
+        // Redirect based on role
+        if (session.role === 'admin') {
+          window.location.replace('staff_upload.html');
+        } else {
+          window.location.replace('lecturer_view.html');
+        }
+      } catch (err) {
+        setLoading(false);
+        showBannerError(err.message || 'ไม่สามารถเข้าสู่ระบบได้ กรุณาลองใหม่อีกครั้ง');
+        passwordInput.value = '';
+        passwordInput.focus();
+      }
+    });
+  </script>
+</body>
+
+</html>
