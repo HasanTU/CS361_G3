@@ -72,6 +72,16 @@ Table DOCUMENTS {
   uploaded_by string
 }
 
+Table USERS {
+  _id ObjectId [pk]
+  email string [unique, note: 'Normalized login identifier']
+  password_hash string [note: 'Hash used only for local mock authentication; never plaintext']
+  name string
+  faculty string
+  role string [note: 'ADMIN or USER; supplied by the application for RBAC']
+  Note: 'Local profile and authorization data. Production identity/password verification will be supplied by the Thammasat API.'
+}
+
 ## 6. Cloud Architecture 
 - Lamda: Backend
 - Storege S3: Frontend
