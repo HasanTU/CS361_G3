@@ -5,7 +5,7 @@ from flask import Flask, redirect, url_for
 from flask_cors import CORS
 
 from backend import config
-from backend.routes import documents_bp
+from backend.routes import auth_bp, documents_bp
 from backend.routes.search import search_bp
 from backend.services.mvp_seed_service import seed_mvp_documents
 
@@ -27,6 +27,7 @@ def create_app():
     # Register document API routes under /api/v1/documents.
     app.register_blueprint(documents_bp)
     app.register_blueprint(search_bp)
+    app.register_blueprint(auth_bp)
 
     # Add three stakeholder demo documents only to a fresh database.
     seed_mvp_documents()
