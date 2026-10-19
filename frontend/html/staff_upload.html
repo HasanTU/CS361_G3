@@ -457,7 +457,7 @@
           ));
           setEditingDoc(null);
           setReplacementFile(null);
-          showToast('success', 'แก้ไขเอกสารสำเร็จ');
+          showToast('success', 'Update complete');
         } catch (error) {
           setEditError(error.message || 'อัปเดตเอกสารไม่สำเร็จ');
         } finally {
@@ -486,7 +486,7 @@
 
           setExistingDocs((current) => current.filter((doc) => doc.id !== confirmingDelete.id));
           setConfirmingDelete(null);
-          showToast('success', 'ลบเอกสารสำเร็จ');
+          showToast('delete-success', 'Delete complete');
         } catch (error) {
           setDeleteError(error.message || 'ลบเอกสารไม่สำเร็จ');
         } finally {
@@ -806,8 +806,8 @@
 
           {toast.show && (
             <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 transform scale-100">
-              {toast.type === 'success' ? (
-                <div id="success-toast" className="bg-[#6BBF72] text-white px-8 py-3.5 rounded-2xl shadow-lg flex items-center gap-3 min-w-[260px] justify-center">
+              {toast.type === 'success' || toast.type === 'delete-success' ? (
+                <div id="success-toast" className={`${toast.type === 'delete-success' ? 'bg-red-600' : 'bg-[#6BBF72]'} text-white px-8 py-3.5 rounded-2xl shadow-lg flex items-center gap-3 min-w-[260px] justify-center`}>
                   <span className="text-xl font-bold flex items-center justify-center w-6 h-6 border-2 border-white rounded-full text-xs">✓</span>
                   <span className="text-base font-normal tracking-wide">{toast.title}</span>
                 </div>

@@ -372,6 +372,7 @@ export default function LecturerDocumentView({
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const isAdmin = (() => {
     try {
       return JSON.parse(sessionStorage.getItem('emb_session'))?.role === 'admin';
@@ -379,6 +380,11 @@ export default function LecturerDocumentView({
       return false;
     }
   })();
+
+  const showSuccessMessage = (message) => {
+    setSuccessMessage(message);
+    setTimeout(() => setSuccessMessage(''), 3000);
+  };
 
   const formatThaiDate = (dateStr) => {
     if (!dateStr) return '';
@@ -483,6 +489,7 @@ export default function LecturerDocumentView({
       ));
       setEditingDoc(null);
       setReplacementFile(null);
+      showSuccessMessage('Update complete');
     } catch (error) {
       setEditError(error.message || 'อัปเดตเอกสารไม่สำเร็จ');
     } finally {
@@ -511,6 +518,7 @@ export default function LecturerDocumentView({
 
       setDocuments((current) => current.filter((doc) => doc.id !== confirmingDelete.id));
       setConfirmingDelete(null);
+      showSuccessMessage('Delete complete');
     } catch (error) {
       setDeleteError(error.message || 'ลบเอกสารไม่สำเร็จ');
     } finally {
@@ -520,6 +528,11 @@ export default function LecturerDocumentView({
 
   return (
     <div className="min-h-screen w-full bg-[#FAF8F5] p-6 sm:p-10 lg:p-14 font-['Prompt',sans-serif] text-[#3D3730]">
+      {successMessage && (
+        <div role="status" className={`fixed top-4 left-1/2 z-40 -translate-x-1/2 rounded-xl ${successMessage === 'Delete complete' ? 'bg-red-600' : 'bg-[#6BBF72]'} px-6 py-3 text-sm text-white shadow-lg`}>
+          {successMessage}
+        </div>
+      )}
       {/* Preview Modal */}
       <DocumentPreviewModal
         document={selectedDocument}
