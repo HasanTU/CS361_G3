@@ -220,6 +220,9 @@
         </svg>
         Admin
       </span>
+      <a href="lecturer_view.html" class="rounded-lg px-3 py-2 text-sm text-[#70675D] hover:bg-[#EFECE6] hover:text-[#3D3730] transition">
+        กล่องเอกสาร
+      </a>
       <div class="emb-navbar-divider" aria-hidden="true"></div>
       <div class="emb-navbar-user">
         <span class="emb-navbar-name" id="nav-user-name">กำลังโหลด...</span>
@@ -330,6 +333,13 @@
       const [existingDocs, setExistingDocs] = useState([]);
       const [searchResults, setSearchResults] = useState([]);
       const [showSearchResults, setShowSearchResults] = useState(false);
+      const [openMenuId, setOpenMenuId] = useState(null);
+      const [editingDoc, setEditingDoc] = useState(null);
+      const [editForm, setEditForm] = useState({ title: '', document_date: '', sender: '', receiver: '' });
+      const [replacementFile, setReplacementFile] = useState(null);
+      const [isSavingEdit, setIsSavingEdit] = useState(false);
+      const [editError, setEditError] = useState('');
+      const isAdmin = getSession()?.role === 'admin';
 
       const [uploadedFiles, setUploadedFiles] = useState([]);
       const [activeFileId, setActiveFileId] = useState(null);
@@ -404,6 +414,51 @@
         setTimeout(() => {
           setToast({ show: false, type: '', title: '', subtitle: '' });
         }, 4000);
+      };
+
+      const handleStartEdit = (doc) => {
+        setEditForm({
+          title: doc.title || '',
+          document_date: doc.document_date || '',
+          sender: doc.sender || '',
+          receiver: doc.receiver || '',
+        });
+        setReplacementFile(null);
+        setEditError('');
+        setEditingDoc(doc);
+        setOpenMenuId(null);
+        setShowSearchResults(false);
+      };
+
+      const handleSaveEdit = async (event) => {
+        event.preventDefault();
+        if (!editingDoc) return;
+
+        setIsSavingEdit(true);
+        setEditError('');
+        const body = new FormData();
+        Object.entries(editForm).forEach(([field, value]) => body.append(field, value));
+        if (replacementFile) body.append('file', replacementFile);
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/v1/documents/${editingDoc.id}`, {
+            method: 'PATCH',
+            body,
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error?.message || 'อัปเดตเอกสารไม่สำเร็จ');
+
+          setExistingDocs((current) => current.map((doc) =>
+            doc.id === editingDoc.id ? result.document : doc
+          ));
+          setEditingDoc(null);
+          setReplacementFile(null);
+          showToast('success', 'แก้ไขเอกสารสำเร็จ');
+        } catch (error) {
+          setEditError(error.message || 'อัปเดตเอกสารไม่สำเร็จ');
+        } finally {
+          setIsSavingEdit(false);
+        }
       };
 
       const renderPdfPage = useCallback(async (pageNumber, doc) => {
@@ -665,6 +720,40 @@
 
       return (
         <div className="min-h-screen w-full bg-[#FAF8F5] flex flex-col md:flex-row font-['Prompt',sans-serif] text-[#3D3730] relative overflow-x-hidden">
+          {editingDoc && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+              <form onSubmit={handleSaveEdit} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+                <div className="mb-5 flex items-center justify-between">
+                  <h2 className="text-lg font-medium text-[#3D3730]">แก้ไขเอกสาร</h2>
+                  <button type="button" onClick={() => setEditingDoc(null)} className="rounded-lg p-2 text-[#70675D] hover:bg-[#EFECE6]" aria-label="ปิด">✕</button>
+                </div>
+                <div className="space-y-3">
+                  <label className="block text-sm text-[#70675D]">ชื่อเรื่อง
+                    <input required value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} className="mt-1 w-full rounded-lg border border-[#D5CEC4] px-3 py-2 text-[#3D3730]" />
+                  </label>
+                  <label className="block text-sm text-[#70675D]">วันที่เอกสาร
+                    <input required type="date" value={editForm.document_date} onChange={(e) => setEditForm({ ...editForm, document_date: e.target.value })} className="mt-1 w-full rounded-lg border border-[#D5CEC4] px-3 py-2 text-[#3D3730]" />
+                  </label>
+                  <label className="block text-sm text-[#70675D]">ผู้ส่ง
+                    <input required value={editForm.sender} onChange={(e) => setEditForm({ ...editForm, sender: e.target.value })} className="mt-1 w-full rounded-lg border border-[#D5CEC4] px-3 py-2 text-[#3D3730]" />
+                  </label>
+                  <label className="block text-sm text-[#70675D]">ผู้รับ
+                    <input required value={editForm.receiver} onChange={(e) => setEditForm({ ...editForm, receiver: e.target.value })} className="mt-1 w-full rounded-lg border border-[#D5CEC4] px-3 py-2 text-[#3D3730]" />
+                  </label>
+                  <label className="block text-sm text-[#70675D]">เปลี่ยนไฟล์ (ไม่เลือกไฟล์เพื่อใช้ไฟล์เดิม)
+                    <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => setReplacementFile(e.target.files?.[0] || null)} className="mt-1 block w-full text-sm" />
+                  </label>
+                  {editError && <p role="alert" className="text-sm text-red-600">{editError}</p>}
+                </div>
+                <div className="mt-6 flex justify-end gap-2">
+                  <button type="button" onClick={() => setEditingDoc(null)} className="rounded-lg bg-[#EFECE6] px-4 py-2 text-sm text-[#554E45]">ยกเลิก</button>
+                  <button type="submit" disabled={isSavingEdit} className="rounded-lg bg-[#8C8176] px-4 py-2 text-sm text-white disabled:opacity-60">
+                    {isSavingEdit ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
           {/* Quick Demo Toolbar hidden — use navbar instead */}
 
           {toast.show && (
@@ -770,19 +859,33 @@
                         searchResults.map(doc => (
                           <div
                             key={doc.id}
-                            className="px-3 py-2 hover:bg-[#FAF8F5] cursor-pointer border-b border-[#EFECE6] last:border-b-0 transition"
+                            className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-[#FAF8F5] border-b border-[#EFECE6] last:border-b-0 transition"
                             onClick={() => {
                               setDocSearchQuery('');
                               setShowSearchResults(false);
                               window.open(`${API_BASE_URL}/api/v1/documents/${doc.id}/file`, '_blank');
                             }}
                           >
-                            <p className="text-xs text-[#3D3730] font-normal truncate">
-                              <HighlightText text={doc.title} query={docSearchQuery} />
-                            </p>
-                            <p className="text-[10px] text-[#9E9689] font-light">
-                              <HighlightText text={doc.sender} query={docSearchQuery} /> → <HighlightText text={doc.receiver} query={docSearchQuery} />
-                            </p>
+                            <div className="min-w-0 flex-1 cursor-pointer">
+                              <p className="text-xs text-[#3D3730] font-normal truncate">
+                                <HighlightText text={doc.title} query={docSearchQuery} />
+                              </p>
+                              <p className="text-[10px] text-[#9E9689] font-light">
+                                <HighlightText text={doc.sender} query={docSearchQuery} /> → <HighlightText text={doc.receiver} query={docSearchQuery} />
+                              </p>
+                            </div>
+                            {isAdmin && (
+                              <div className="relative shrink-0" onClick={(event) => event.stopPropagation()}>
+                                <button type="button" onClick={() => setOpenMenuId(openMenuId === doc.id ? null : doc.id)} className="rounded-lg p-1.5 text-[#70675D] hover:bg-[#EFECE6] hover:text-[#3D3730]" aria-label={`ตัวเลือกเอกสาร ${doc.title}`} aria-haspopup="menu" aria-expanded={openMenuId === doc.id}>
+                                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+                                </button>
+                                {openMenuId === doc.id && (
+                                  <div role="menu" className="absolute right-0 top-full z-30 mt-1 min-w-28 rounded-lg border border-[#E8E4DC] bg-white p-1 shadow-lg">
+                                    <button type="button" role="menuitem" onClick={() => handleStartEdit(doc)} className="w-full rounded-md px-3 py-2 text-left text-sm text-[#3D3730] hover:bg-[#F5F2EC]">แก้ไขเอกสาร</button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         ))
                       )}

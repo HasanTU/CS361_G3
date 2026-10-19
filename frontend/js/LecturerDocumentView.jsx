@@ -368,7 +368,13 @@ export default function LecturerDocumentView({
   const [replacementFile, setReplacementFile] = useState(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editError, setEditError] = useState('');
-  const isAdmin = window.currentUser?.role === 'ADMIN';
+  const isAdmin = (() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('emb_session'))?.role === 'admin';
+    } catch {
+      return false;
+    }
+  })();
 
   const formatThaiDate = (dateStr) => {
     if (!dateStr) return '';
