@@ -240,16 +240,20 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
             if missing:
                 return _error_response(400, f"Missing required fields: {', '.join(missing)}")
 
+            receiver = form_fields["receiver"].strip()
+            recipients = [receiver] if receiver else []
+
             doc = use_cases.register_document(
                 title=form_fields["title"],
                 document_date=form_fields["document_date"],
                 sender=form_fields["sender"],
-                receiver=form_fields["receiver"],
+                receiver=receiver,
                 file_name=file_info["file_name"],
                 file_bytes=file_info["file_bytes"],
                 content_type=file_info["content_type"],
                 uploaded_by=primary_id,
                 document_type_id=form_fields.get("document_type_id"),
+                recipient_ids=recipients,
             )
             return _json_response(201, {
                 "message": "Document registered successfully",

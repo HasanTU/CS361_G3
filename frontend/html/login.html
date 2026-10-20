@@ -560,6 +560,9 @@
         }
         const session = result.user;
         sessionStorage.setItem(AUTH_KEY, JSON.stringify(session));
+        if (result.token) {
+          sessionStorage.setItem('emb_token', result.token);
+        }
 
         // Redirect based on role
         if (session.role === 'admin') {

@@ -251,7 +251,12 @@
     }
 
     function fetchWithSession(url, options = {}) {
-      return fetch(url, { ...options, credentials: 'include' });
+      const headers = { ...(options.headers || {}) };
+      const token = sessionStorage.getItem('emb_token');
+      if (token && !headers['Authorization']) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      return fetch(url, { ...options, headers, credentials: 'include' });
     }
 
     // Populate navbar from session

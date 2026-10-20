@@ -4,10 +4,14 @@
  */
 
 const AUTH_KEY = 'emb_session';
+const TOKEN_KEY = 'emb_token';
 
 const Auth = {
-  setSession(user) {
+  setSession(user, token = null) {
     sessionStorage.setItem(AUTH_KEY, JSON.stringify(user));
+    if (token) {
+      sessionStorage.setItem(TOKEN_KEY, token);
+    }
   },
 
   getSession() {
@@ -19,8 +23,13 @@ const Auth = {
     }
   },
 
+  getToken() {
+    return sessionStorage.getItem(TOKEN_KEY);
+  },
+
   clearSession() {
     sessionStorage.removeItem(AUTH_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
   },
 
   isLoggedIn() {

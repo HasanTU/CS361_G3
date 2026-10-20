@@ -126,11 +126,11 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
 
             user, token = use_cases.login(email=email, password=password)
 
-            # Issue HttpOnly, Secure cookie
+            # Issue HttpOnly, Secure cookie and return token in payload for Authorization header fallback
             cookie_val = (
                 f"auth_token={token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=86400"
             )
-            return _json_response(200, {"user": user}, cookie=cookie_val)
+            return _json_response(200, {"user": user, "token": token}, cookie=cookie_val)
 
         # POST /api/v1/auth/logout
         if method == "POST" and (
