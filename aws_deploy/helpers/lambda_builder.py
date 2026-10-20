@@ -32,7 +32,18 @@ def build_lambda_package() -> Path:
     build_dir.mkdir(parents=True, exist_ok=True)
 
     print("   [INFO] Installing packages with uv...", end="", flush=True)
-    cmd = ["uv", "pip", "install", *LAMBDA_DEPENDENCIES, "--target", str(build_dir)]
+    cmd = [
+        "uv",
+        "pip",
+        "install",
+        "--python-version",
+        "3.11",
+        "--python-platform",
+        "linux",
+        *LAMBDA_DEPENDENCIES,
+        "--target",
+        str(build_dir),
+    ]
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL)
     print(" [Done]")
 
