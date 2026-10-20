@@ -39,7 +39,9 @@ class S3FileStorageAdapter(FileStoragePort):
     @staticmethod
     def _sanitize_filename(filename: str) -> str:
         """Sanitize filename to prevent directory traversal and special character exploits."""
-        name = Path(filename).name
+        # Normalize Windows backslashes to forward slashes before extracting basename
+        normalized = str(filename).replace("\\", "/")
+        name = Path(normalized).name
         # Keep alphanumeric, periods, dashes, and underscores only
         cleaned = re.sub(r"[^a-zA-Z0-9_.-]", "_", name)
         cleaned = cleaned.strip("._")
