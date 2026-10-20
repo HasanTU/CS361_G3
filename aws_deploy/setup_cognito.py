@@ -158,8 +158,9 @@ def seed_test_users(cognito_client, pool_id: str):
         group = user["group"]
         name = user["name"]
 
+        cognito_username = email
         try:
-            cognito_client.admin_create_user(
+            res = cognito_client.admin_create_user(
                 UserPoolId=pool_id,
                 Username=email,
                 UserAttributes=[
@@ -169,18 +170,38 @@ def seed_test_users(cognito_client, pool_id: str):
                 ],
                 MessageAction="SUPPRESS",
             )
-            print(f" - Created user: {email}")
+            cognito_username = res.get("User", {}).get("Username", email)
+            print(f" - Created user: {name} ({email})")
         except ClientError as err:
             if err.response["Error"]["Code"] == "UsernameExistsException":
-                print(f" - User already exists: {email}")
+                print(f" - User already exists: {name} ({email})")
+                try:
+                    user_info = cognito_client.admin_get_user(UserPoolId=pool_id, Username=email)
+                    cognito_username = user_info.get("Username", email)
+                except Exception:
+                    cognito_username = email
             else:
                 print(f" - Error creating {email}: {err}")
+
+        # Always sync user attributes (name, email_verified) so display names update
+        try:
+            cognito_client.admin_update_user_attributes(
+                UserPoolId=pool_id,
+                Username=cognito_username,
+                UserAttributes=[
+                    {"Name": "name", "Value": name},
+                    {"Name": "email_verified", "Value": "true"},
+                ],
+            )
+            print(f"   [OK] Synced display name to '{name}'")
+        except Exception as err:
+            print(f"   [WARN] Name sync warning for {email}: {err}")
 
         # Set permanent password so user does not need first-time password reset
         try:
             cognito_client.admin_set_user_password(
                 UserPoolId=pool_id,
-                Username=email,
+                Username=cognito_username,
                 Password=password,
                 Permanent=True,
             )
@@ -191,11 +212,12 @@ def seed_test_users(cognito_client, pool_id: str):
         try:
             cognito_client.admin_add_user_to_group(
                 UserPoolId=pool_id,
-                Username=email,
+                Username=cognito_username,
                 GroupName=group,
             )
-        except Exception:
-            pass
+            print(f"   [OK] Attached to group '{group}'")
+        except Exception as err:
+            print(f"   [WARN] Group attach error for {email}: {err}")
 
 
 def update_env_file(pool_id: str, client_id: str):
