@@ -53,8 +53,17 @@ class AuthUseCases:
                 from pymongo import MongoClient
 
                 uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/e_mailbox")
+                if ".mongodb.net/?" in uri and "/e_mailbox?" not in uri:
+                    uri = uri.replace(".mongodb.net/?", ".mongodb.net/e_mailbox?")
+                elif uri.endswith(".mongodb.net"):
+                    uri = uri + "/e_mailbox"
                 client: MongoClient = MongoClient(uri)
-                db = client.get_default_database() or client["e_mailbox"]
+                try:
+                    db = client.get_default_database()
+                except Exception:
+                    db = None
+                if db is None:
+                    db = client["e_mailbox"]
                 self._collection = db["users"]
             except Exception:
                 self._collection = None
