@@ -198,7 +198,6 @@ def configure_apigw_v2(
                 "AllowOrigins": ["*"],
                 "AllowMethods": ["*"],
                 "AllowHeaders": ["*"],
-                "AllowCredentials": True,
                 "MaxAge": 86400,
             },
         )
