@@ -73,6 +73,11 @@ class Document:
         self.document_type_id = (
             str(document_type_id).strip() if document_type_id is not None else None
         )
+        if isinstance(uploaded_at, str):
+            try:
+                uploaded_at = datetime.fromisoformat(uploaded_at)
+            except Exception:
+                uploaded_at = datetime.now(timezone.utc)
         self.uploaded_at = uploaded_at or datetime.now(timezone.utc)
 
         # Workflow & Assignment composition
@@ -164,6 +169,11 @@ class Document:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert domain entity to a plain dictionary (for API or database)."""
+        uploaded_at_str = (
+            self.uploaded_at.isoformat()
+            if hasattr(self.uploaded_at, "isoformat")
+            else str(self.uploaded_at)
+        )
         data: dict[str, Any] = {
             "title": self.title,
             "document_date": self.document_date,
@@ -174,7 +184,7 @@ class Document:
             "file_type": self.file_type,
             "file_size": self.file_size,
             "uploaded_by": self.uploaded_by,
-            "uploaded_at": self.uploaded_at.isoformat(),
+            "uploaded_at": uploaded_at_str,
             "status": self.status.value,
             "assigned_to": self.assigned_to,
             "status_history": [entry.to_dict() for entry in self.status_history],

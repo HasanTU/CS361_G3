@@ -104,6 +104,28 @@ def _decode_jwt_payload(token: str) -> dict[str, Any]:
     return json.loads(decoded_bytes.decode("utf-8"))
 
 
+KNOWN_USER_ALIASES = {
+    "admin1@tu.ac.th": ["Kasidit", "admin1", "Admin One"],
+    "kasidit": ["admin1@tu.ac.th", "admin1", "Admin One"],
+    "admin1": ["admin1@tu.ac.th", "Kasidit", "Admin One"],
+    "admin2@tu.ac.th": ["Saowaluk", "admin2", "Admin Two"],
+    "saowaluk": ["admin2@tu.ac.th", "admin2", "Admin Two"],
+    "admin2": ["admin2@tu.ac.th", "Saowaluk", "Admin Two"],
+    "user1@tu.ac.th": ["Prapaporn", "user1", "User One"],
+    "prapaporn": ["user1@tu.ac.th", "user1", "User One"],
+    "user1": ["user1@tu.ac.th", "Prapaporn", "User One"],
+    "user one": ["user1@tu.ac.th", "Prapaporn", "user1"],
+    "user2@tu.ac.th": ["Songsakdi", "user2", "User Two"],
+    "songsakdi": ["user2@tu.ac.th", "user2", "User Two"],
+    "user2": ["user2@tu.ac.th", "Songsakdi", "User Two"],
+    "user two": ["user2@tu.ac.th", "Songsakdi", "user2"],
+    "user3@tu.ac.th": ["Wilawan", "user3", "User Three"],
+    "wilawan": ["user3@tu.ac.th", "user3", "User Three"],
+    "user3": ["user3@tu.ac.th", "Wilawan", "User Three"],
+    "user three": ["user3@tu.ac.th", "Wilawan", "user3"],
+}
+
+
 def _parse_auth(event: dict[str, Any]) -> Tuple[list[str], bool]:
     """Authenticate request from Cognito JWT cookie/token.
 
@@ -132,6 +154,16 @@ def _parse_auth(event: dict[str, Any]) -> Tuple[list[str], bool]:
     identities = [str(x).strip() for x in raw_candidates if x and str(x).strip()]
     if not identities:
         raise PermissionError("Token contains no valid user identity")
+
+    # Expand identities using known seed aliases to bridge Cognito & Mongo records
+    expanded_identities = list(identities)
+    for ident in identities:
+        clean_key = ident.strip().lower()
+        if clean_key in KNOWN_USER_ALIASES:
+            for alias in KNOWN_USER_ALIASES[clean_key]:
+                if alias not in expanded_identities:
+                    expanded_identities.append(alias)
+    identities = expanded_identities
 
     # Check for admin role via groups, custom attribute, or known admin email/name/username
     groups = [str(g).upper() for g in claims.get("cognito:groups", [])]

@@ -99,6 +99,17 @@ class MongoDocumentRepository(DocumentRepositoryPort):
         else:
             assigned_to = []
 
+        raw_uploaded = record.get("uploaded_at")
+        if isinstance(raw_uploaded, str):
+            try:
+                uploaded_at = datetime.fromisoformat(raw_uploaded)
+            except Exception:
+                uploaded_at = datetime.now(timezone.utc)
+        elif hasattr(raw_uploaded, "isoformat"):
+            uploaded_at = raw_uploaded
+        else:
+            uploaded_at = datetime.now(timezone.utc)
+
         return Document(
             document_id=str(record["_id"]),
             title=title,
@@ -110,7 +121,7 @@ class MongoDocumentRepository(DocumentRepositoryPort):
             file_type=file_type,
             file_size=file_size,
             uploaded_by=uploaded_by,
-            uploaded_at=record.get("uploaded_at"),
+            uploaded_at=uploaded_at,
             document_type_id=(
                 str(record["document_type_id"])
                 if record.get("document_type_id")
