@@ -98,24 +98,35 @@ class AuthUseCases:
                 auth_result = resp.get("AuthenticationResult", {})
                 token = auth_result.get("IdToken") or auth_result.get("AccessToken")
                 if not token:
-                    raise PermissionError("Cognito authentication failed: no token returned")
+                    raise PermissionError(
+                        "Cognito authentication failed: no token returned"
+                    )
 
                 claims = _decode_jwt_payload(token)
                 groups = [str(g).upper() for g in claims.get("cognito:groups", [])]
-                custom_role = str(claims.get("custom:role") or claims.get("role") or "").lower()
-                role = "admin" if ("ADMIN" in groups or custom_role == "admin") else "user"
+                custom_role = str(
+                    claims.get("custom:role") or claims.get("role") or ""
+                ).lower()
+                role = (
+                    "admin" if ("ADMIN" in groups or custom_role == "admin") else "user"
+                )
 
                 user = {
                     "id": claims.get("sub", ""),
                     "email": claims.get("email", clean_email),
-                    "name": claims.get("name") or claims.get("cognito:username") or clean_email.split("@")[0],
+                    "name": claims.get("name")
+                    or claims.get("cognito:username")
+                    or clean_email.split("@")[0],
                     "role": role,
                     "faculty": claims.get("custom:faculty", ""),
                 }
                 return user, token
             except Exception as err:
+                print(f"Cognito login error: {type(err).__name__}: {err}")
                 # If Cognito returned NotAuthorizedException or similar
-                if "NotAuthorizedException" in str(err) or "UserNotFoundException" in str(err):
+                if "NotAuthorizedException" in str(
+                    err
+                ) or "UserNotFoundException" in str(err):
                     raise PermissionError("Invalid email or password") from err
                 # If network or boto3 error, fall through to fallback
 
@@ -156,7 +167,9 @@ class AuthUseCases:
     @staticmethod
     def _synthesize_test_token(user: dict[str, Any]) -> str:
         """Create a mock JWT for offline testing without network."""
-        hdr = base64.urlsafe_b64encode(b'{"alg":"none","typ":"JWT"}').decode().rstrip("=")
+        hdr = (
+            base64.urlsafe_b64encode(b'{"alg":"none","typ":"JWT"}').decode().rstrip("=")
+        )
         claims = {
             "sub": user.get("id", "user-id"),
             "email": user["email"],
@@ -164,7 +177,9 @@ class AuthUseCases:
             "role": user["role"],
             "cognito:groups": ["ADMIN"] if user["role"] == "admin" else ["USER"],
         }
-        payload = base64.urlsafe_b64encode(json.dumps(claims).encode()).decode().rstrip("=")
+        payload = (
+            base64.urlsafe_b64encode(json.dumps(claims).encode()).decode().rstrip("=")
+        )
         return f"{hdr}.{payload}.mock_signature"
 
     def list_users(self) -> list[dict[str, str]]:

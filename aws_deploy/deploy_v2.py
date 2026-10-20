@@ -31,6 +31,7 @@ V2_DEPENDENCIES = [
     "pymongo>=4.3.0",
     "dnspython>=2.3.0",
     "python-dotenv>=1.0.0",
+    "werkzeug>=2.3.0",
 ]
 
 MICRO_FUNCTIONS = [
@@ -167,7 +168,9 @@ def deploy_or_update_lambda(
             )
             arn = res["FunctionArn"]
             print(" [Done]")
-            wait_for_lambda_ready(lambda_client, name, f"Waiting for {name} to become Active")
+            wait_for_lambda_ready(
+                lambda_client, name, f"Waiting for {name} to become Active"
+            )
         else:
             raise
 
@@ -204,8 +207,8 @@ def configure_apigw_v2(
 
     cors_config = {
         "AllowOrigins": allowed_origins,
-        "AllowMethods": ["*"],
-        "AllowHeaders": ["*"],
+        "AllowMethods": ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        "AllowHeaders": ["content-type", "authorization", "cookie"],
         "AllowCredentials": True,
         "MaxAge": 86400,
     }
@@ -290,7 +293,11 @@ def main():
     apigw_client = session.client("apigatewayv2")
 
     s3_key = "deploy/lambda_v2_package.zip"
-    print(f"\ninfo: [Step 3] Uploading bundle to s3://{doc_bucket}/{s3_key}...", end="", flush=True)
+    print(
+        f"\ninfo: [Step 3] Uploading bundle to s3://{doc_bucket}/{s3_key}...",
+        end="",
+        flush=True,
+    )
     s3_client.upload_file(str(zip_path), doc_bucket, s3_key)
     print(" [Done]")
     if zip_path.exists():
