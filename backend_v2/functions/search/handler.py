@@ -31,12 +31,15 @@ def set_use_cases(use_cases: SearchUseCases) -> None:
     _use_cases = use_cases
 
 
+_current_origin: str = "*"
+
+
 def _cors_headers() -> dict[str, str]:
     """Generate standard CORS headers using configured frontend origin."""
-    origin = os.getenv("FRONTEND_ORIGIN", "*")
+    allow_origin = _current_origin or os.getenv("FRONTEND_ORIGIN", "*")
     return {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Origin": allow_origin,
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Headers": "Content-Type,Authorization,Cookie",
         "Access-Control-Allow-Methods": "GET,OPTIONS",
@@ -121,6 +124,10 @@ def _parse_auth(event: dict[str, Any]) -> Tuple[str, bool]:
 
 def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]:
     """AWS Lambda entrypoint handler for Search Micro-Lambda."""
+    global _current_origin
+    req_headers = event.get("headers") or {}
+    _current_origin = req_headers.get("origin") or req_headers.get("Origin") or os.getenv("FRONTEND_ORIGIN", "*")
+
     http_ctx = event.get("requestContext", {}).get("http", {})
     method = (http_ctx.get("method") or event.get("httpMethod") or "GET").upper()
     raw_path = event.get("rawPath") or http_ctx.get("path") or ""

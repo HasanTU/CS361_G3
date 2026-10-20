@@ -8,6 +8,7 @@ from typing import Any, Optional
 from backend_v2.functions.auth.use_cases import AuthUseCases
 
 _use_cases: Optional[AuthUseCases] = None
+_current_origin: str = "*"
 
 
 def get_use_cases() -> AuthUseCases:
@@ -26,10 +27,10 @@ def set_use_cases(use_cases: AuthUseCases) -> None:
 
 def _cors_headers(cookie: Optional[str] = None) -> dict[str, str]:
     """Generate standard CORS headers including optional Set-Cookie."""
-    origin = os.getenv("FRONTEND_ORIGIN", "*")
+    allow_origin = _current_origin or os.getenv("FRONTEND_ORIGIN", "*")
     headers = {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Origin": allow_origin,
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Headers": "Content-Type,Authorization,Cookie",
         "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
@@ -96,6 +97,10 @@ def _decode_jwt_payload(token: str) -> dict[str, Any]:
 
 def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]:
     """AWS Lambda entrypoint handler for Auth Micro-Lambda."""
+    global _current_origin
+    req_headers = event.get("headers") or {}
+    _current_origin = req_headers.get("origin") or req_headers.get("Origin") or os.getenv("FRONTEND_ORIGIN", "*")
+
     http_ctx = event.get("requestContext", {}).get("http", {})
     method = (http_ctx.get("method") or event.get("httpMethod") or "GET").upper()
     raw_path = event.get("rawPath") or http_ctx.get("path") or ""

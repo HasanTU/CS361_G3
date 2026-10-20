@@ -189,12 +189,15 @@ def configure_apigw_v2(
             api_endpoint = api["ApiEndpoint"]
             break
 
-    frontend_url = (
-        f"http://cs361-g3-frontend-{account_id}.s3-website-us-east-1.amazonaws.com"
-        if region == "us-east-1"
-        else f"http://cs361-g3-frontend-{account_id}.s3-website.{region}.amazonaws.com"
-    )
-    allowed_origins = [frontend_url, "http://localhost:5000", "http://127.0.0.1:5000"]
+    bucket_name = f"cs361-g3-frontend-{account_id}"
+    allowed_origins = [
+        f"http://{bucket_name}.s3-website-us-east-1.amazonaws.com",
+        f"http://{bucket_name}.s3-website.us-east-1.amazonaws.com",
+        f"https://{bucket_name}.s3-website-us-east-1.amazonaws.com",
+        f"https://{bucket_name}.s3-website.us-east-1.amazonaws.com",
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
+    ]
     custom_origin = os.getenv("FRONTEND_ORIGIN")
     if custom_origin and custom_origin not in allowed_origins:
         allowed_origins.append(custom_origin.rstrip("/"))
@@ -294,9 +297,15 @@ def main():
         zip_path.unlink()
 
     # Environment variables for micro-functions
+    frontend_origin = (
+        f"http://cs361-g3-frontend-{account_id}.s3-website-us-east-1.amazonaws.com"
+        if region == "us-east-1"
+        else f"http://cs361-g3-frontend-{account_id}.s3-website.{region}.amazonaws.com"
+    )
     env_vars = {
         "MONGO_URI": mongo_uri,
         "S3_BUCKET_NAME": doc_bucket,
+        "FRONTEND_ORIGIN": frontend_origin,
         "COGNITO_USER_POOL_ID": os.getenv("COGNITO_USER_POOL_ID", ""),
         "COGNITO_CLIENT_ID": os.getenv("COGNITO_CLIENT_ID", ""),
     }
