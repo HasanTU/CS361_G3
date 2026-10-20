@@ -1,6 +1,7 @@
 """MongoDB Atlas adapter implementing DocumentRepositoryPort."""
 
 import os
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from bson import ObjectId
@@ -60,27 +61,63 @@ class MongoDocumentRepository(DocumentRepositoryPort):
             except Exception:
                 continue
 
+        # Robust date parsing (handles datetime, ISO strings with timestamps, and formats)
+        raw_date = record.get("document_date")
+        if hasattr(raw_date, "strftime"):
+            doc_date = raw_date.strftime("%Y-%m-%d")
+        elif isinstance(raw_date, str) and raw_date.strip():
+            first_part = raw_date.strip().split("T")[0].split(" ")[0].replace("/", "-")
+            try:
+                datetime.strptime(first_part, "%Y-%m-%d")
+                doc_date = first_part
+            except Exception:
+                doc_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        else:
+            doc_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        # Safe attribute defaults to prevent Document.__init__ ValueError
+        title = str(record.get("title") or "Untitled Document").strip() or "Untitled Document"
+        sender = str(record.get("sender") or "System").strip() or "System"
+        receiver = str(record.get("receiver") or "General").strip() or "General"
+        file_path = str(record.get("file_path") or f"documents/{record.get('_id')}.pdf").strip()
+        file_name = str(record.get("file_name") or f"{title}.pdf").strip()
+        file_type = str(record.get("file_type") or "application/pdf").strip() or "application/pdf"
+        file_size = int(record.get("file_size") or 0)
+        uploaded_by = str(record.get("uploaded_by") or "system").strip() or "system"
+
+        raw_status = str(record.get("status", DocumentStatus.RECEIVED.value)).upper()
+        try:
+            status = DocumentStatus(raw_status)
+        except Exception:
+            status = DocumentStatus.RECEIVED
+
+        raw_assigned = record.get("assigned_to")
+        if isinstance(raw_assigned, list):
+            assigned_to = [str(x).strip() for x in raw_assigned if x and str(x).strip()]
+        elif isinstance(raw_assigned, str) and raw_assigned.strip():
+            assigned_to = [raw_assigned.strip()]
+        else:
+            assigned_to = []
+
         return Document(
             document_id=str(record["_id"]),
-            title=record.get("title", ""),
-            document_date=record.get("document_date", ""),
-            sender=record.get("sender", ""),
-            receiver=record.get("receiver", ""),
-            file_path=record.get("file_path", ""),
-            file_name=record.get("file_name", ""),
-            file_type=record.get("file_type", ""),
-            file_size=record.get("file_size", 0),
-            uploaded_by=record.get("uploaded_by", "system"),
+            title=title,
+            document_date=doc_date,
+            sender=sender,
+            receiver=receiver,
+            file_path=file_path,
+            file_name=file_name,
+            file_type=file_type,
+            file_size=file_size,
+            uploaded_by=uploaded_by,
             uploaded_at=record.get("uploaded_at"),
             document_type_id=(
                 str(record["document_type_id"])
                 if record.get("document_type_id")
                 else None
             ),
-            status=DocumentStatus(
-                record.get("status", DocumentStatus.RECEIVED.value)
-            ),
-            assigned_to=record.get("assigned_to") or [],
+            status=status,
+            assigned_to=assigned_to,
             status_history=history_entries,
         )
 
@@ -106,7 +143,13 @@ class MongoDocumentRepository(DocumentRepositoryPort):
             return None
 
         record = self.collection.find_one({"_id": oid})
-        return self._to_domain(record) if record else None
+        if not record:
+            return None
+        try:
+            return self._to_domain(record)
+        except Exception as err:
+            print(f"[REPO_WARN] Skipped unparseable record {document_id}: {err}")
+            return None
 
     def find_all(
         self, filter_criteria: Optional[dict[str, Any]] = None
@@ -114,7 +157,13 @@ class MongoDocumentRepository(DocumentRepositoryPort):
         """Retrieve all documents matching the optional filter criteria."""
         query = dict(filter_criteria or {})
         cursor = self.collection.find(query)
-        return [self._to_domain(record) for record in cursor]
+        docs = []
+        for record in cursor:
+            try:
+                docs.append(self._to_domain(record))
+            except Exception as err:
+                print(f"[REPO_WARN] Skipped malformed record {record.get('_id')}: {err}")
+        return docs
 
     def find_by_assigned_user(self, user_id: Any) -> list[Document]:
         """Retrieve all documents assigned to a given user ID, email, or name."""
@@ -142,7 +191,13 @@ class MongoDocumentRepository(DocumentRepositoryPort):
 
         query = {"$or": or_conditions} if or_conditions else {}
         cursor = self.collection.find(query)
-        return [self._to_domain(record) for record in cursor]
+        docs = []
+        for record in cursor:
+            try:
+                docs.append(self._to_domain(record))
+            except Exception as err:
+                print(f"[REPO_WARN] Skipped malformed record {record.get('_id')}: {err}")
+        return docs
 
     def create(self, document: Document) -> Document:
         """Insert a new Document entity into MongoDB and populate its generated ID."""

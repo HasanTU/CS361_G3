@@ -1051,6 +1051,7 @@
               setViewState(list.length > 0 ? 'data' : 'empty');
             }
           } catch (error) {
+            console.error("Failed to load documents:", error);
             if (isMounted) {
               setDocuments([]);
               setViewState('empty');

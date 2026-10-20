@@ -194,14 +194,17 @@ class AuthUseCases:
     def list_users(self) -> list[dict[str, str]]:
         """Return list of distinct registered user names for recipient dropdowns."""
         coll = self._get_user_collection()
-        if coll is None:
-            return [{"name": "Prof. Somchai"}, {"name": "Prof. Kanna"}]
+        names = set()
+        if coll is not None:
+            try:
+                for record in coll.find({}, {"name": 1}):
+                    if isinstance(record.get("name"), str) and record["name"].strip():
+                        names.add(record["name"].strip())
+            except Exception:
+                pass
 
-        names = sorted(
-            {
-                record.get("name", "").strip()
-                for record in coll.find({}, {"name": 1})
-                if isinstance(record.get("name"), str) and record["name"].strip()
-            }
-        )
-        return [{"name": n} for n in names]
+        # If DB collection is empty or unreachable, fallback to default seed users
+        if not names:
+            names = {"Kasidit", "Saowaluk", "Prapaporn", "Songsakdi", "Wilawan"}
+
+        return [{"name": n} for n in sorted(names)]
