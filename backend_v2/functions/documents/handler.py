@@ -104,11 +104,11 @@ def _decode_jwt_payload(token: str) -> dict[str, Any]:
     return json.loads(decoded_bytes.decode("utf-8"))
 
 
-def _parse_auth(event: dict[str, Any]) -> Tuple[str, bool]:
+def _parse_auth(event: dict[str, Any]) -> Tuple[list[str], bool]:
     """Authenticate request from Cognito JWT cookie/token.
 
     Returns:
-        Tuple[str, bool]: (user_id, is_admin)
+        Tuple[list[str], bool]: (identities_list, is_admin)
     Raises:
         PermissionError: If unauthenticated or token is malformed.
     """
@@ -121,15 +121,16 @@ def _parse_auth(event: dict[str, Any]) -> Tuple[str, bool]:
     except Exception as err:
         raise PermissionError(f"Invalid authentication token: {err}") from err
 
-    # Extract user identifier (email > cognito:username > username > name > sub)
-    user_id = (
-        claims.get("email")
-        or claims.get("cognito:username")
-        or claims.get("username")
-        or claims.get("name")
-        or claims.get("sub")
-    )
-    if not user_id:
+    # Extract all identity candidates (email, display name, username, sub UUID)
+    raw_candidates = [
+        claims.get("email"),
+        claims.get("name"),
+        claims.get("cognito:username"),
+        claims.get("username"),
+        claims.get("sub"),
+    ]
+    identities = [str(x).strip() for x in raw_candidates if x and str(x).strip()]
+    if not identities:
         raise PermissionError("Token contains no valid user identity")
 
     # Check for admin role via groups or custom attribute
@@ -137,7 +138,7 @@ def _parse_auth(event: dict[str, Any]) -> Tuple[str, bool]:
     role = str(claims.get("custom:role") or claims.get("role") or "").upper()
     is_admin = ("ADMIN" in groups) or (role == "ADMIN")
 
-    return str(user_id), is_admin
+    return identities, is_admin
 
 
 def _parse_multipart_body(
@@ -201,12 +202,13 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
 
     try:
         # 2. Authenticate request
-        user_id, is_admin = _parse_auth(event)
+        user_identities, is_admin = _parse_auth(event)
+        primary_id = user_identities[0]
 
         # 3. Route Dispatch
         # GET /api/v1/documents - List documents
         if method == "GET" and (raw_path == "/api/v1/documents" or raw_path == "/api/v1/documents/"):
-            documents = use_cases.list_documents(user_id=user_id, is_admin=is_admin)
+            documents = use_cases.list_documents(user_id=user_identities, is_admin=is_admin)
             return _json_response(200, {
                 "documents": [d.to_dict() for d in documents],
                 "count": len(documents),
@@ -240,7 +242,7 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
                 file_name=file_info["file_name"],
                 file_bytes=file_info["file_bytes"],
                 content_type=file_info["content_type"],
-                uploaded_by=user_id,
+                uploaded_by=primary_id,
                 document_type_id=form_fields.get("document_type_id"),
             )
             return _json_response(201, {
@@ -258,7 +260,7 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
             doc = use_cases.assign_document(
                 document_id=doc_id,
                 recipient_ids=recipients,
-                assigned_by=user_id,
+                assigned_by=primary_id,
                 is_admin=is_admin,
                 note=note,
             )
@@ -277,7 +279,7 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
             doc = use_cases.update_document_status(
                 document_id=doc_id,
                 new_status=new_status,
-                changed_by=user_id,
+                changed_by=user_identities,
                 is_admin=is_admin,
                 note=note,
             )
@@ -290,7 +292,7 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
         if file_match and method == "GET":
             doc_id = file_match.group(1)
             file_path, doc = use_cases.get_document_file(
-                document_id=doc_id, user_id=user_id, is_admin=is_admin
+                document_id=doc_id, user_id=user_identities, is_admin=is_admin
             )
             with open(file_path, "rb") as f:
                 content = f.read()
@@ -318,7 +320,7 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
         if detail_match and method == "GET":
             doc_id = detail_match.group(1)
             doc = use_cases.get_document_details(
-                document_id=doc_id, user_id=user_id, is_admin=is_admin
+                document_id=doc_id, user_id=user_identities, is_admin=is_admin
             )
             return _json_response(200, doc.to_dict())
 

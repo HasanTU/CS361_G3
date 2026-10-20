@@ -95,8 +95,8 @@ def _decode_jwt_payload(token: str) -> dict[str, Any]:
     return json.loads(decoded_bytes.decode("utf-8"))
 
 
-def _parse_auth(event: dict[str, Any]) -> Tuple[str, bool]:
-    """Extract authenticated user identity and role from Cognito token."""
+def _parse_auth(event: dict[str, Any]) -> Tuple[list[str], bool]:
+    """Extract authenticated user identity candidates and role from Cognito token."""
     token = _extract_cookie_token(event)
     if not token:
         raise PermissionError("Authentication is required")
@@ -106,21 +106,22 @@ def _parse_auth(event: dict[str, Any]) -> Tuple[str, bool]:
     except Exception as err:
         raise PermissionError(f"Invalid authentication token: {err}") from err
 
-    user_id = (
-        claims.get("email")
-        or claims.get("cognito:username")
-        or claims.get("username")
-        or claims.get("name")
-        or claims.get("sub")
-    )
-    if not user_id:
+    raw_candidates = [
+        claims.get("email"),
+        claims.get("name"),
+        claims.get("cognito:username"),
+        claims.get("username"),
+        claims.get("sub"),
+    ]
+    identities = [str(x).strip() for x in raw_candidates if x and str(x).strip()]
+    if not identities:
         raise PermissionError("Token contains no valid user identity")
 
     groups = [str(g).upper() for g in claims.get("cognito:groups", [])]
     role = str(claims.get("custom:role") or claims.get("role") or "").upper()
     is_admin = ("ADMIN" in groups) or (role == "ADMIN")
 
-    return str(user_id), is_admin
+    return identities, is_admin
 
 
 def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]:
@@ -145,14 +146,14 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
 
     try:
         # 2. Authenticate request
-        user_id, is_admin = _parse_auth(event)
+        user_identities, is_admin = _parse_auth(event)
 
         # 3. Route Dispatch: GET /api/v1/search/trie
         if method == "GET" and (
             raw_path == "/api/v1/search/trie" or raw_path.endswith("/search/trie")
         ):
             trie_dict, count = use_cases.get_search_trie(
-                user_id=user_id, is_admin=is_admin
+                user_id=user_identities, is_admin=is_admin
             )
             return _json_response(200, {
                 "trie": trie_dict,

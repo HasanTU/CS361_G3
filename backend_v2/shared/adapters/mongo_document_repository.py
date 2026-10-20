@@ -116,17 +116,31 @@ class MongoDocumentRepository(DocumentRepositoryPort):
         cursor = self.collection.find(query)
         return [self._to_domain(record) for record in cursor]
 
-    def find_by_assigned_user(self, user_id: str) -> list[Document]:
-        """Retrieve all documents assigned to a given user ID or receiver."""
-        cleaned_uid = str(user_id).strip()
-        query = {
-            "$or": [
-                {"assigned_to": cleaned_uid},
-                {"receiver": cleaned_uid},
-                {"assigned_to": {"$regex": f"^{cleaned_uid}$", "$options": "i"}},
-                {"receiver": {"$regex": f"^{cleaned_uid}$", "$options": "i"}},
-            ]
-        }
+    def find_by_assigned_user(self, user_id: Any) -> list[Document]:
+        """Retrieve all documents assigned to a given user ID, email, or name."""
+        import re
+
+        if isinstance(user_id, (list, tuple, set)):
+            candidates = [str(x).strip() for x in user_id if x and str(x).strip()]
+        else:
+            candidates = [str(user_id).strip()] if user_id else []
+
+        if not candidates:
+            return []
+
+        or_conditions: list[dict[str, Any]] = []
+        for cand in candidates:
+            escaped = re.escape(cand)
+            or_conditions.extend(
+                [
+                    {"assigned_to": cand},
+                    {"receiver": cand},
+                    {"assigned_to": {"$regex": f"^{escaped}$", "$options": "i"}},
+                    {"receiver": {"$regex": f"^{escaped}$", "$options": "i"}},
+                ]
+            )
+
+        query = {"$or": or_conditions} if or_conditions else {}
         cursor = self.collection.find(query)
         return [self._to_domain(record) for record in cursor]
 

@@ -144,14 +144,23 @@ class Document:
         )
         self.transition_status(target_status, changed_by=assigned_by, note=note)
 
-    def is_accessible_by(self, user_id: str, is_admin: bool = False) -> bool:
+    def is_accessible_by(self, user_id: Any, is_admin: bool = False) -> bool:
         """Determine whether a given user has read permissions for this document."""
         if is_admin:
             return True
-        uid = str(user_id).strip().lower()
+
+        if isinstance(user_id, (list, tuple, set)):
+            candidates = [str(x).strip().lower() for x in user_id if x and str(x).strip()]
+        else:
+            candidates = [str(user_id).strip().lower()] if user_id else []
+
         assigned_lower = [str(x).strip().lower() for x in self.assigned_to]
         receiver_clean = self.receiver.strip().lower()
-        return (uid in assigned_lower) or (uid == receiver_clean)
+
+        for cand in candidates:
+            if (cand in assigned_lower) or (cand == receiver_clean):
+                return True
+        return False
 
     def to_dict(self) -> dict[str, Any]:
         """Convert domain entity to a plain dictionary (for API or database)."""

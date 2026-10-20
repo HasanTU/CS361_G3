@@ -155,7 +155,8 @@ class DocumentUseCases:
             raise PermissionError("Access denied: You cannot update an unassigned document")
 
         target_status = DocumentStatus(new_status)
-        document.transition_status(target_status, changed_by=changed_by, note=note)
+        actor = changed_by[0] if isinstance(changed_by, (list, tuple)) else str(changed_by)
+        document.transition_status(target_status, changed_by=actor, note=note)
 
         update_payload = {
             "status": document.status.value,
