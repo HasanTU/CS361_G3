@@ -148,7 +148,10 @@ class Document:
         """Determine whether a given user has read permissions for this document."""
         if is_admin:
             return True
-        return str(user_id).strip() in self.assigned_to
+        uid = str(user_id).strip().lower()
+        assigned_lower = [str(x).strip().lower() for x in self.assigned_to]
+        receiver_clean = self.receiver.strip().lower()
+        return (uid in assigned_lower) or (uid == receiver_clean)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert domain entity to a plain dictionary (for API or database)."""

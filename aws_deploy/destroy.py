@@ -67,20 +67,53 @@ def delete_api_gateway(apigw_client, api_name: str):
         print(f" [Error: {err.response['Error']['Message']}]")
 
 
+def delete_cognito_pool(cognito_client, pool_name_prefix: str):
+    """Delete Cognito User Pools matching the name prefix."""
+    print(f"info: Checking Cognito User Pools ({pool_name_prefix})...", end="", flush=True)
+    try:
+        pools = cognito_client.list_user_pools(MaxResults=20).get("UserPools", [])
+        matched = [p for p in pools if p.get("Name", "").startswith(pool_name_prefix)]
+        if not matched:
+            print(" [None Found / Already Deleted]")
+            return
+
+        for pool in matched:
+            pool_id = pool["Id"]
+            print(f"\ninfo: Deleting User Pool {pool['Name']} ({pool_id})...", end="", flush=True)
+            cognito_client.delete_user_pool(UserPoolId=pool_id)
+            print(" [Done]")
+    except ClientError as err:
+        print(f" [Error: {err.response['Error']['Message']}]")
+    except Exception as err:
+        print(f" [Skipped / Not Available: {err}]")
+
+
 def main():
-    print("info: AWS Teardown Utility")
+    print("info: AWS Teardown Utility (V1 & V2 Serverless)")
     session, account_id, region = get_aws_session()
 
     doc_bucket = f"cs361-g3-documents-{account_id}"
     frontend_bucket = f"cs361-g3-frontend-{account_id}"
-    lambda_name = "cs361-g3-backend"
-    api_name = "cs361-g3-api"
+    
+    lambdas_to_delete = [
+        "cs361-g3-backend",        # V1 monolithic Lambda
+        "cs361-g3-v2-documents",   # V2 micro-Lambda
+        "cs361-g3-v2-search",      # V2 micro-Lambda
+        "cs361-g3-v2-auth",        # V2 micro-Lambda
+    ]
+    apis_to_delete = [
+        "cs361-g3-api",            # V1 API Gateway
+        "cs361-g3-v2-api",         # V2 API Gateway
+    ]
 
-    print("\nThe following resources will be deleted:")
-    print(f" - API Gateway: {api_name}")
-    print(f" - Lambda Function: {lambda_name}")
+    print("\nThe following resources will be checked and deleted:")
+    for api in apis_to_delete:
+        print(f" - API Gateway: {api}")
+    for fn in lambdas_to_delete:
+        print(f" - Lambda Function: {fn}")
     print(f" - S3 Document Bucket: {doc_bucket}")
     print(f" - S3 Frontend Bucket: {frontend_bucket}")
+    print(" - Cognito User Pools: cs361-g3-userpool*")
 
     confirm = input("\nType 'yes' to confirm teardown: ").strip().lower()
     if confirm != "yes":
@@ -90,16 +123,28 @@ def main():
     s3_client = session.client("s3")
     lambda_client = session.client("lambda")
     apigw_client = session.client("apigatewayv2")
+    try:
+        cognito_client = session.client("cognito-idp")
+    except Exception:
+        cognito_client = None
 
-    # 1. Delete API Gateway & Lambda
-    delete_api_gateway(apigw_client, api_name)
-    delete_lambda(lambda_client, lambda_name)
+    # 1. Delete API Gateways
+    for api in apis_to_delete:
+        delete_api_gateway(apigw_client, api)
 
-    # 2. Delete S3 Buckets
+    # 2. Delete Lambda Functions
+    for fn in lambdas_to_delete:
+        delete_lambda(lambda_client, fn)
+
+    # 3. Delete Cognito User Pool if exists
+    if cognito_client:
+        delete_cognito_pool(cognito_client, "cs361-g3-userpool")
+
+    # 4. Delete S3 Buckets
     delete_s3_bucket(s3_client, doc_bucket)
     delete_s3_bucket(s3_client, frontend_bucket)
 
-    print("\ninfo: All cloud resources have been completely removed.")
+    print("\ninfo: All cloud resources (V1 & V2) have been completely removed.")
 
 
 if __name__ == "__main__":

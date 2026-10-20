@@ -117,9 +117,16 @@ class MongoDocumentRepository(DocumentRepositoryPort):
         return [self._to_domain(record) for record in cursor]
 
     def find_by_assigned_user(self, user_id: str) -> list[Document]:
-        """Retrieve all documents assigned to a given user ID."""
+        """Retrieve all documents assigned to a given user ID or receiver."""
         cleaned_uid = str(user_id).strip()
-        query = {"assigned_to": cleaned_uid}
+        query = {
+            "$or": [
+                {"assigned_to": cleaned_uid},
+                {"receiver": cleaned_uid},
+                {"assigned_to": {"$regex": f"^{cleaned_uid}$", "$options": "i"}},
+                {"receiver": {"$regex": f"^{cleaned_uid}$", "$options": "i"}},
+            ]
+        }
         cursor = self.collection.find(query)
         return [self._to_domain(record) for record in cursor]
 

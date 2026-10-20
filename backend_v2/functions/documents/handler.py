@@ -121,11 +121,12 @@ def _parse_auth(event: dict[str, Any]) -> Tuple[str, bool]:
     except Exception as err:
         raise PermissionError(f"Invalid authentication token: {err}") from err
 
-    # Extract user identifier (username > email > sub)
+    # Extract user identifier (email > cognito:username > username > name > sub)
     user_id = (
-        claims.get("cognito:username")
+        claims.get("email")
+        or claims.get("cognito:username")
         or claims.get("username")
-        or claims.get("email")
+        or claims.get("name")
         or claims.get("sub")
     )
     if not user_id:
