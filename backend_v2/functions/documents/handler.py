@@ -67,26 +67,27 @@ def _error_response(status_code: int, message: str) -> dict[str, Any]:
 
 
 def _extract_cookie_token(event: dict[str, Any]) -> Optional[str]:
-    """Extract auth_token from HTTP API cookies array or header string."""
-    # 1. Check API Gateway v2 event["cookies"] list
+    """Extract auth_token from Authorization Bearer header, HTTP API cookies array, or cookie header."""
+    headers = event.get("headers") or {}
+
+    # 1. Check Authorization Bearer FIRST (isolated per browser tab via sessionStorage)
+    auth_header = headers.get("authorization") or headers.get("Authorization") or ""
+    if auth_header.startswith("Bearer "):
+        return auth_header.split("Bearer ", 1)[1].strip()
+
+    # 2. Check API Gateway v2 event["cookies"] list
     raw_cookies = event.get("cookies") or []
     for item in raw_cookies:
         if isinstance(item, str) and item.startswith("auth_token="):
             return item.split("auth_token=", 1)[1].split(";", 1)[0].strip()
 
-    # 2. Check headers cookie string
-    headers = event.get("headers") or {}
+    # 3. Check headers cookie string
     cookie_str = headers.get("cookie") or headers.get("Cookie") or ""
     if cookie_str:
         for part in cookie_str.split(";"):
             part = part.strip()
             if part.startswith("auth_token="):
                 return part.split("auth_token=", 1)[1].strip()
-
-    # 3. Check Authorization Bearer fallback
-    auth_header = headers.get("authorization") or headers.get("Authorization") or ""
-    if auth_header.startswith("Bearer "):
-        return auth_header.split("Bearer ", 1)[1].strip()
 
     return None
 
