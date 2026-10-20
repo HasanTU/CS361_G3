@@ -280,7 +280,6 @@ def main():
     env_vars = {
         "MONGO_URI": mongo_uri,
         "S3_BUCKET_NAME": doc_bucket,
-        "AWS_REGION": region,
         "COGNITO_USER_POOL_ID": os.getenv("COGNITO_USER_POOL_ID", ""),
         "COGNITO_CLIENT_ID": os.getenv("COGNITO_CLIENT_ID", ""),
     }
