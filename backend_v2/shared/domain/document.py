@@ -1,87 +1,20 @@
-"""Pure domain entity for registered documents and workflow state transitions."""
+"""Pure domain entity representing a registered document composed with workflow rules."""
 
 from datetime import datetime, timezone
-from enum import Enum
 from typing import Any, Optional
 
-
-class DocumentStatus(str, Enum):
-    """Lifecycle states for a document in the departmental workflow."""
-
-    RECEIVED = "RECEIVED"          # Admin registered document into the system
-    ASSIGNED = "ASSIGNED"          # Admin assigned document to specific recipients
-    ACKNOWLEDGED = "ACKNOWLEDGED"  # Recipient opened and confirmed receipt
-    IN_PROGRESS = "IN_PROGRESS"    # Recipient is actively processing the document
-    COMPLETED = "COMPLETED"        # Action concluded and document archived
-    FORWARDED = "FORWARDED"        # Re-assigned / routed to a different recipient
-
-
-class StatusLogEntry:
-    """Audit trail record of a single workflow state change."""
-
-    def __init__(
-        self,
-        status: DocumentStatus,
-        changed_by: str,
-        changed_at: Optional[datetime] = None,
-        note: str = "",
-    ):
-        if not isinstance(status, DocumentStatus):
-            status = DocumentStatus(status)
-        if not isinstance(changed_by, str) or not changed_by.strip():
-            raise ValueError("Status changer ID must be a non-empty string")
-
-        self.status = status
-        self.changed_by = changed_by.strip()
-        self.changed_at = changed_at or datetime.now(timezone.utc)
-        self.note = (note or "").strip()
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert entry into serializable dictionary."""
-        return {
-            "status": self.status.value,
-            "changed_by": self.changed_by,
-            "changed_at": self.changed_at.isoformat(),
-            "note": self.note,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "StatusLogEntry":
-        """Reconstruct audit log entry from dictionary."""
-        changed_at = data.get("changed_at")
-        if isinstance(changed_at, str):
-            changed_at = datetime.fromisoformat(changed_at)
-        return cls(
-            status=DocumentStatus(data["status"]),
-            changed_by=data["changed_by"],
-            changed_at=changed_at,
-            note=data.get("note", ""),
-        )
+from .document_status import ALLOWED_STATUS_TRANSITIONS, DocumentStatus
+from .status_log_entry import StatusLogEntry
 
 
 class Document:
-    """Pure domain entity representing a departmental document.
+    """Departmental document domain entity.
 
-    Adheres strictly to Clean Architecture:
+    Adheres strictly to Clean Architecture & Composition:
     - Zero third-party dependencies (no MongoDB, PyMongo, BSON, or AWS SDKs).
-    - Self-validating attributes.
+    - Composes DocumentStatus and StatusLogEntry.
     - Governs document workflow status transitions and recipient assignments.
     """
-
-    ALLOWED_TRANSITIONS: dict[DocumentStatus, set[DocumentStatus]] = {
-        DocumentStatus.RECEIVED: {DocumentStatus.ASSIGNED},
-        DocumentStatus.ASSIGNED: {
-            DocumentStatus.ACKNOWLEDGED,
-            DocumentStatus.FORWARDED,
-        },
-        DocumentStatus.FORWARDED: {DocumentStatus.ACKNOWLEDGED},
-        DocumentStatus.ACKNOWLEDGED: {
-            DocumentStatus.IN_PROGRESS,
-            DocumentStatus.COMPLETED,
-        },
-        DocumentStatus.IN_PROGRESS: {DocumentStatus.COMPLETED},
-        DocumentStatus.COMPLETED: set(),
-    }
 
     def __init__(
         self,
@@ -142,7 +75,7 @@ class Document:
         )
         self.uploaded_at = uploaded_at or datetime.now(timezone.utc)
 
-        # Workflow & Assignment validation
+        # Workflow & Assignment composition
         if not isinstance(status, DocumentStatus):
             status = DocumentStatus(status)
         self.status = status
@@ -166,7 +99,7 @@ class Document:
         """Check if transition to target status is valid from current status."""
         if not isinstance(target_status, DocumentStatus):
             target_status = DocumentStatus(target_status)
-        return target_status in self.ALLOWED_TRANSITIONS.get(self.status, set())
+        return target_status in ALLOWED_STATUS_TRANSITIONS.get(self.status, set())
 
     def transition_status(
         self,
