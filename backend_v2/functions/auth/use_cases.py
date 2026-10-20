@@ -177,12 +177,14 @@ class AuthUseCases:
         hdr = (
             base64.urlsafe_b64encode(b'{"alg":"none","typ":"JWT"}').decode().rstrip("=")
         )
+        user_role = str(user.get("role", "")).lower()
+        is_admin_user = (user_role == "admin") or ("admin" in str(user.get("email", "")).lower())
         claims = {
             "sub": user.get("id", "user-id"),
             "email": user["email"],
-            "name": user["name"],
-            "role": user["role"],
-            "cognito:groups": ["ADMIN"] if user["role"] == "admin" else ["USER"],
+            "name": user.get("name", ""),
+            "role": "admin" if is_admin_user else "user",
+            "cognito:groups": ["ADMIN"] if is_admin_user else ["USER"],
         }
         payload = (
             base64.urlsafe_b64encode(json.dumps(claims).encode()).decode().rstrip("=")

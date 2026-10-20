@@ -119,13 +119,12 @@ def _parse_auth(event: dict[str, Any]) -> Tuple[list[str], bool]:
 
     groups = [str(g).upper() for g in claims.get("cognito:groups", [])]
     role = str(claims.get("custom:role") or claims.get("role") or "").upper()
-    email = str(claims.get("email") or "").lower()
-    is_admin = (
-        ("ADMIN" in groups)
-        or (role == "ADMIN")
-        or email.startswith("admin")
-        or email in ["admin1@tu.ac.th", "admin2@tu.ac.th"]
+    ident_strings = [str(x).strip().lower() for x in identities]
+    has_admin_ident = any(
+        ("admin" in s) or (s in ["admin1@tu.ac.th", "admin2@tu.ac.th", "kasidit", "saowaluk"])
+        for s in ident_strings
     )
+    is_admin = ("ADMIN" in groups) or (role == "ADMIN") or has_admin_ident
 
     return identities, is_admin
 
