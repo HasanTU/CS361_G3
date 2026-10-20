@@ -133,10 +133,16 @@ def _parse_auth(event: dict[str, Any]) -> Tuple[list[str], bool]:
     if not identities:
         raise PermissionError("Token contains no valid user identity")
 
-    # Check for admin role via groups or custom attribute
+    # Check for admin role via groups, custom attribute, or known admin email
     groups = [str(g).upper() for g in claims.get("cognito:groups", [])]
     role = str(claims.get("custom:role") or claims.get("role") or "").upper()
-    is_admin = ("ADMIN" in groups) or (role == "ADMIN")
+    email = str(claims.get("email") or "").lower()
+    is_admin = (
+        ("ADMIN" in groups)
+        or (role == "ADMIN")
+        or email.startswith("admin")
+        or email in ["admin1@tu.ac.th", "admin2@tu.ac.th"]
+    )
 
     return identities, is_admin
 
