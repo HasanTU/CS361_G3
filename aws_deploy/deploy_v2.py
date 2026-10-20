@@ -189,23 +189,41 @@ def configure_apigw_v2(
             api_endpoint = api["ApiEndpoint"]
             break
 
+    frontend_url = (
+        f"http://cs361-g3-frontend-{account_id}.s3-website-us-east-1.amazonaws.com"
+        if region == "us-east-1"
+        else f"http://cs361-g3-frontend-{account_id}.s3-website.{region}.amazonaws.com"
+    )
+    allowed_origins = [frontend_url, "http://localhost:5000", "http://127.0.0.1:5000"]
+    custom_origin = os.getenv("FRONTEND_ORIGIN")
+    if custom_origin and custom_origin not in allowed_origins:
+        allowed_origins.append(custom_origin.rstrip("/"))
+
+    cors_config = {
+        "AllowOrigins": allowed_origins,
+        "AllowMethods": ["*"],
+        "AllowHeaders": ["*"],
+        "AllowCredentials": True,
+        "MaxAge": 86400,
+    }
+
     if not api_id:
         print("   [INFO] Creating API Gateway HTTP API...", end="", flush=True)
         new_api = apigw_client.create_api(
             Name=api_name,
             ProtocolType="HTTP",
-            CorsConfiguration={
-                "AllowOrigins": ["*"],
-                "AllowMethods": ["*"],
-                "AllowHeaders": ["*"],
-                "MaxAge": 86400,
-            },
+            CorsConfiguration=cors_config,
         )
         api_id = new_api["ApiId"]
         api_endpoint = new_api["ApiEndpoint"]
         print(" [Done]")
 
         apigw_client.create_stage(ApiId=api_id, StageName="$default", AutoDeploy=True)
+    else:
+        try:
+            apigw_client.update_api(ApiId=api_id, CorsConfiguration=cors_config)
+        except ClientError:
+            pass
 
     # Wire routes and integrations for each micro-function
     for func in MICRO_FUNCTIONS:
