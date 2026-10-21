@@ -100,6 +100,30 @@ def _decode_jwt_payload(token: str) -> dict[str, Any]:
 
 
 KNOWN_USER_ALIASES = {
+    # CS361 Project 4 Personas
+    "staff1@tu.ac.th": ["คุณธารินี สุขสวัสดิ์", "staff1", "STAFF-1"],
+    "staff1": ["คุณธารินี สุขสวัสดิ์", "staff1@tu.ac.th", "STAFF-1"],
+    "staff-1": ["คุณธารินี สุขสวัสดิ์", "staff1@tu.ac.th", "STAFF-1"],
+    "คุณธารินี สุขสวัสดิ์": ["staff1@tu.ac.th", "staff1", "STAFF-1"],
+
+    "head1@tu.ac.th": ["อ.ดร.ปกรณ์ สุขใจ", "หัวหน้าสาขาวิชาวิทยาการคอมพิวเตอร์", "หัวหน้าสาขา", "head1", "HEAD-1"],
+    "head1": ["อ.ดร.ปกรณ์ สุขใจ", "head1@tu.ac.th", "หัวหน้าสาขาวิชาวิทยาการคอมพิวเตอร์", "HEAD-1"],
+    "head-1": ["อ.ดร.ปกรณ์ สุขใจ", "head1@tu.ac.th", "หัวหน้าสาขาวิชาวิทยาการคอมพิวเตอร์", "HEAD-1"],
+    "อ.ดร.ปกรณ์ สุขใจ": ["head1@tu.ac.th", "head1", "HEAD-1", "หัวหน้าสาขาวิชาวิทยาการคอมพิวเตอร์"],
+    "หัวหน้าสาขา": ["head1@tu.ac.th", "อ.ดร.ปกรณ์ สุขใจ", "HEAD-1"],
+    "หัวหน้าสาขาวิชาวิทยาการคอมพิวเตอร์": ["head1@tu.ac.th", "อ.ดร.ปกรณ์ สุขใจ", "HEAD-1"],
+
+    "fac_a@tu.ac.th": ["อ.ดร.วรินทร์ พงษ์ดี", "fac_a", "FAC-A"],
+    "fac_a": ["อ.ดร.วรินทร์ พงษ์ดี", "fac_a@tu.ac.th", "FAC-A"],
+    "fac-a": ["อ.ดร.วรินทร์ พงษ์ดี", "fac_a@tu.ac.th", "FAC-A"],
+    "อ.ดร.วรินทร์ พงษ์ดี": ["fac_a@tu.ac.th", "fac_a", "FAC-A"],
+
+    "fac_b@tu.ac.th": ["อ.ดร.ณัฐวุฒิ ศรีวัฒน์", "fac_b", "FAC-B"],
+    "fac_b": ["อ.ดร.ณัฐวุฒิ ศรีวัฒน์", "fac_b@tu.ac.th", "FAC-B"],
+    "fac-b": ["อ.ดร.ณัฐวุฒิ ศรีวัฒน์", "fac_b@tu.ac.th", "FAC-B"],
+    "อ.ดร.ณัฐวุฒิ ศรีวัฒน์": ["fac_b@tu.ac.th", "fac_b", "FAC-B"],
+
+    # Existing Developer Accounts
     "admin1@tu.ac.th": ["Kasidit", "admin1", "Admin One"],
     "kasidit": ["admin1@tu.ac.th", "admin1", "Admin One"],
     "admin1": ["admin1@tu.ac.th", "Kasidit", "Admin One"],
@@ -157,7 +181,9 @@ def _parse_auth(event: dict[str, Any]) -> Tuple[list[str], bool]:
     role = str(claims.get("custom:role") or claims.get("role") or "").upper()
     ident_strings = [str(x).strip().lower() for x in identities]
     has_admin_ident = any(
-        ("admin" in s) or (s in ["admin1@tu.ac.th", "admin2@tu.ac.th", "kasidit", "saowaluk"])
+        ("admin" in s)
+        or ("staff" in s)
+        or (s in ["admin1@tu.ac.th", "admin2@tu.ac.th", "kasidit", "saowaluk", "staff1@tu.ac.th", "staff-1", "ธารินี", "คุณธารินี สุขสวัสดิ์"])
         for s in ident_strings
     )
     is_admin = ("ADMIN" in groups) or (role == "ADMIN") or has_admin_ident

@@ -111,21 +111,24 @@ class DocumentUseCases:
         self,
         document_id: str,
         recipient_ids: list[str],
-        assigned_by: str,
+        assigned_by: Any,
         is_admin: bool = False,
         note: str = "",
     ) -> Document:
-        """Assign or forward document to recipient users (Admin privilege required)."""
-        if not is_admin:
-            raise PermissionError("Admin privilege required to assign recipients")
-
+        """Assign or forward document to recipient users (Admin or assigned Department Head)."""
         document = self._repo.get_by_id(document_id)
         if document is None:
             raise LookupError(f"Document was not found: {document_id}")
 
+        # Admin or currently assigned recipient (e.g. Department Head) can forward/assign
+        can_assign = is_admin or document.is_accessible_by(assigned_by, is_admin=is_admin)
+        if not can_assign:
+            raise PermissionError("Permission required to assign or forward this document")
+
+        actor = assigned_by[0] if isinstance(assigned_by, (list, tuple)) else str(assigned_by)
         document.assign_recipients(
             recipient_user_ids=recipient_ids,
-            assigned_by=assigned_by,
+            assigned_by=actor,
             note=note,
         )
 

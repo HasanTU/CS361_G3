@@ -203,8 +203,19 @@ class AuthUseCases:
             except Exception:
                 pass
 
-        # If DB collection is empty or unreachable, fallback to default seed users
-        if not names:
-            names = {"Kasidit", "Saowaluk", "Prapaporn", "Songsakdi", "Wilawan"}
+        # Fallback to default in-class challenge and seed users
+        default_names = {
+            "คุณธารินี สุขสวัสดิ์",
+            "อ.ดร.ปกรณ์ สุขใจ",
+            "หัวหน้าสาขาวิชาวิทยาการคอมพิวเตอร์",
+            "อ.ดร.วรินทร์ พงษ์ดี",
+            "อ.ดร.ณัฐวุฒิ ศรีวัฒน์",
+            "Kasidit",
+            "Saowaluk",
+            "Prapaporn",
+            "Songsakdi",
+            "Wilawan",
+        }
+        names.update(default_names)
 
         return [{"name": n} for n in sorted(names)]

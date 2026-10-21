@@ -23,6 +23,40 @@ POOL_NAME = "cs361-g3-userpool"
 CLIENT_NAME = "cs361-g3-client"
 
 SEED_USERS = [
+    # In-Class Challenge Personas (CS361 Project 4)
+    {
+        "email": "staff1@tu.ac.th",
+        "name": "คุณธารินี สุขสวัสดิ์",
+        "role": "ADMIN",
+        "group": "ADMIN",
+        "faculty": "สำนักงานธุรการ (STAFF-1)",
+        "password": "Admin123!",
+    },
+    {
+        "email": "head1@tu.ac.th",
+        "name": "อ.ดร.ปกรณ์ สุขใจ",
+        "role": "USER",
+        "group": "USER",
+        "faculty": "หัวหน้าสาขาวิชาวิทยาการคอมพิวเตอร์ (HEAD-1)",
+        "password": "User123!",
+    },
+    {
+        "email": "fac_a@tu.ac.th",
+        "name": "อ.ดร.วรินทร์ พงษ์ดี",
+        "role": "USER",
+        "group": "USER",
+        "faculty": "คณะวิทยาศาสตร์และเทคโนโลยี (FAC-A)",
+        "password": "User123!",
+    },
+    {
+        "email": "fac_b@tu.ac.th",
+        "name": "อ.ดร.ณัฐวุฒิ ศรีวัฒน์",
+        "role": "USER",
+        "group": "USER",
+        "faculty": "คณะวิทยาศาสตร์และเทคโนโลยี (FAC-B)",
+        "password": "User123!",
+    },
+    # Existing Developer & Test Accounts
     {
         "email": "admin1@tu.ac.th",
         "name": "Kasidit",

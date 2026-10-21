@@ -340,7 +340,7 @@
       ? 'http://localhost:5000'
       : window.location.origin;
 
-    function DocumentPreviewModal({ document: doc, isOpen, onClose }) {
+    function DocumentPreviewModal({ document: doc, isOpen, onClose, onActionSuccess }) {
       const [currentFileIndex, setCurrentFileIndex] = useState(0);
       const [zoom, setZoom] = useState(100);
       const [currentPage, setCurrentPage] = useState(1);
@@ -348,6 +348,12 @@
       const [pdfDoc, setPdfDoc] = useState(null);
       const [isPdf, setIsPdf] = useState(false);
       const [isImage, setIsImage] = useState(false);
+      const [isAcknowledging, setIsAcknowledging] = useState(false);
+      const [showForwardModal, setShowForwardModal] = useState(false);
+      const [forwardTarget, setForwardTarget] = useState('อ.ดร.ณัฐวุฒิ ศรีวัฒน์');
+      const [forwardNote, setForwardNote] = useState('โปรดดำเนินการ');
+      const [isForwarding, setIsForwarding] = useState(false);
+      const [showAuditTrail, setShowAuditTrail] = useState(false);
       const canvasRef = useRef(null);
 
       const filesList = doc && doc.files && doc.files.length > 0
@@ -612,6 +618,52 @@
         }
       };
 
+      const handleAcknowledge = async () => {
+        if (!doc) return;
+        setIsAcknowledging(true);
+        try {
+          const resp = await fetchWithSession(`${API_BASE_URL}/api/v1/documents/${doc.id}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'ACKNOWLEDGED', note: 'รับทราบ' })
+          });
+          if (!resp.ok) {
+            const errData = await resp.json().catch(() => ({}));
+            throw new Error(errData.error?.message || 'ไม่สามารถบันทึกรับทราบได้');
+          }
+          if (onActionSuccess) onActionSuccess('บันทึกการรับทราบเรียบร้อยแล้ว');
+        } catch (err) {
+          alert(err.message || 'เกิดข้อผิดพลาด');
+        } finally {
+          setIsAcknowledging(false);
+        }
+      };
+
+      const handleForwardSubmit = async () => {
+        if (!doc || !forwardTarget) return;
+        setIsForwarding(true);
+        try {
+          const resp = await fetchWithSession(`${API_BASE_URL}/api/v1/documents/${doc.id}/assign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recipients: [forwardTarget],
+              note: forwardNote || 'โปรดดำเนินการ'
+            })
+          });
+          if (!resp.ok) {
+            const errData = await resp.json().catch(() => ({}));
+            throw new Error(errData.error?.message || 'ไม่สามารถมอบหมายเอกสารได้');
+          }
+          setShowForwardModal(false);
+          if (onActionSuccess) onActionSuccess(`มอบหมายเอกสารให้ ${forwardTarget} แล้ว`);
+        } catch (err) {
+          alert(err.message || 'เกิดข้อผิดพลาด');
+        } finally {
+          setIsForwarding(false);
+        }
+      };
+
       return (
         <div
           id="preview-modal-overlay"
@@ -620,23 +672,33 @@
         >
           {/* Top Header */}
           <div
-            className="w-full flex items-start justify-between p-6 sm:p-8 shrink-0 cursor-pointer"
+            className="w-full flex items-start justify-between p-6 sm:p-8 shrink-0 cursor-pointer relative"
             onClick={(e) => {
               if (e.target === e.currentTarget) onClose();
             }}
           >
             <div
-              className="max-w-2xl text-white space-y-1 pr-4 cursor-default"
+              className="max-w-2xl text-white space-y-1.5 pr-4 cursor-default"
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-base sm:text-xl font-normal leading-snug tracking-tight text-white">
-                {doc.title}
-              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base sm:text-xl font-normal leading-snug tracking-tight text-white">
+                  {doc.title}
+                </h2>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                  doc.status === 'ACKNOWLEDGED'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+                    : doc.status === 'FORWARDED'
+                    ? 'bg-indigo-500/20 text-indigo-300 border-indigo-400/40'
+                    : doc.status === 'ASSIGNED'
+                    ? 'bg-blue-500/20 text-blue-300 border-blue-400/40'
+                    : 'bg-amber-500/20 text-amber-300 border-amber-400/40'
+                }`}>
+                  {doc.status === 'ACKNOWLEDGED' ? 'รับทราบแล้ว' : doc.status === 'FORWARDED' ? 'ส่งต่อแล้ว' : doc.status === 'ASSIGNED' ? 'มอบหมายแล้ว' : 'ลงรับแล้ว'}
+                </span>
+              </div>
               <p className="text-xs sm:text-sm text-white/80 font-light">
-                ได้รับ {doc.document_date || doc.uploaded_at || '-'}
-              </p>
-              <p className="text-xs sm:text-sm text-white/80 font-light">
-                จาก {doc.sender}
+                ได้รับ {doc.document_date || doc.uploaded_at || '-'} • จาก {doc.sender} • ผู้รับ {doc.receiver}
               </p>
               {filesList.length > 1 && (
                 <p className="text-xs text-[#E8E4DC] font-light bg-white/15 inline-block px-3 py-0.5 rounded-full mt-1">
@@ -645,18 +707,140 @@
               )}
             </div>
 
-            <button
-              id="btn-modal-close"
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose();
-              }}
-              className="text-white/80 hover:text-white transition p-2 text-2xl sm:text-3xl leading-none cursor-pointer shrink-0"
-              title="ปิด (Esc หรือคลิกพื้นหลัง)"
-            >
-              ✕
-            </button>
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+              {/* Acknowledge Button */}
+              {doc.status !== 'ACKNOWLEDGED' && (
+                <button
+                  id="btn-modal-acknowledge"
+                  type="button"
+                  onClick={handleAcknowledge}
+                  disabled={isAcknowledging}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="บันทึกการรับทราบเอกสาร"
+                >
+                  ✓ รับทราบ
+                </button>
+              )}
+
+              {/* Forward / Assign Button */}
+              <button
+                id="btn-modal-forward"
+                type="button"
+                onClick={() => setShowForwardModal(true)}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition shadow-md flex items-center gap-1.5 cursor-pointer"
+                title="มอบหมายหรือส่งต่อเอกสาร"
+              >
+                ➔ มอบหมาย/ส่งต่อ
+              </button>
+
+              {/* Audit History Toggle Button */}
+              {doc.status_history && doc.status_history.length > 0 && (
+                <button
+                  id="btn-modal-history"
+                  type="button"
+                  onClick={() => setShowAuditTrail(!showAuditTrail)}
+                  className="bg-white/15 hover:bg-white/25 text-white px-3 py-1.5 rounded-xl text-xs sm:text-sm font-light transition cursor-pointer"
+                  title="ดูประวัติการดำเนินงาน"
+                >
+                  ประวัติ ({doc.status_history.length})
+                </button>
+              )}
+
+              <button
+                id="btn-modal-close"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+                className="text-white/80 hover:text-white transition p-2 text-2xl sm:text-3xl leading-none cursor-pointer shrink-0 ml-1"
+                title="ปิด (Esc หรือคลิกพื้นหลัง)"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Audit History Dropdown Panel */}
+            {showAuditTrail && (
+              <div
+                className="absolute top-20 right-8 z-40 w-80 sm:w-96 bg-white text-[#3D3730] p-4 rounded-2xl shadow-2xl border border-[#D5CEC4] text-xs max-h-96 overflow-y-auto cursor-default"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex justify-between items-center mb-3 pb-2 border-b border-[#EFECE6]">
+                  <span className="font-medium text-sm">ประวัติการดำเนินงาน (Audit History)</span>
+                  <button type="button" onClick={() => setShowAuditTrail(false)} className="text-[#9E9689] hover:text-[#3D3730] text-sm">✕</button>
+                </div>
+                <div className="space-y-3">
+                  {(doc.status_history || []).map((entry, idx) => (
+                    <div key={idx} className="border-l-2 border-[#8C8176] pl-2.5 py-0.5 space-y-0.5">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-[#2B251F]">{entry.status}</span>
+                        <span className="text-[10px] text-[#9E9689]">
+                          {entry.changed_at ? new Date(entry.changed_at).toLocaleString('th-TH') : '-'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#70675D]">ผู้ดำเนินการ: {entry.changed_by}</p>
+                      {entry.note && <p className="text-[11px] text-[#554E45] italic font-light">ความเห็น: "{entry.note}"</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Forward Modal Popover */}
+            {showForwardModal && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+                onClick={(e) => { e.stopPropagation(); setShowForwardModal(false); }}
+              >
+                <div
+                  className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl text-[#3D3730] cursor-default"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3 className="text-lg font-medium mb-1">มอบหมาย / ส่งต่อเอกสาร</h3>
+                  <p className="text-xs text-[#70675D] mb-4">ส่งต่อเอกสารให้บุคลากรหรืออาจารย์ท่านอื่นเพื่อดำเนินการ</p>
+                  <label className="block text-xs font-medium text-[#70675D] mb-1">
+                    ผู้รับมอบหมาย:
+                    <select
+                      value={forwardTarget}
+                      onChange={(e) => setForwardTarget(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-[#D5CEC4] px-3 py-2 text-sm text-[#3D3730] focus:outline-none"
+                    >
+                      <option value="อ.ดร.ณัฐวุฒิ ศรีวัฒน์">อ.ดร.ณัฐวุฒิ ศรีวัฒน์ (FAC-B)</option>
+                      <option value="อ.ดร.วรินทร์ พงษ์ดี">อ.ดร.วรินทร์ พงษ์ดี (FAC-A)</option>
+                      <option value="อ.ดร.ปกรณ์ สุขใจ">อ.ดร.ปกรณ์ สุขใจ (HEAD-1)</option>
+                    </select>
+                  </label>
+                  <label className="block text-xs font-medium text-[#70675D] mt-3 mb-1">
+                    ความเห็น / บันทึกสั่งการ:
+                    <input
+                      type="text"
+                      value={forwardNote}
+                      onChange={(e) => setForwardNote(e.target.value)}
+                      placeholder="เช่น โปรดดำเนินการ"
+                      className="mt-1 w-full rounded-xl border border-[#D5CEC4] px-3 py-2 text-sm text-[#3D3730] focus:outline-none"
+                    />
+                  </label>
+                  <div className="mt-5 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowForwardModal(false)}
+                      className="rounded-xl bg-[#EFECE6] px-4 py-2 text-xs font-medium text-[#554E45]"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleForwardSubmit}
+                      disabled={isForwarding}
+                      className="rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 text-xs font-medium disabled:opacity-50"
+                    >
+                      {isForwarding ? 'กำลังส่งต่อ...' : 'ยืนยันการมอบหมาย'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Center: A4 Paper Preview Canvas with Left & Right Document Switch Buttons */}
@@ -1033,37 +1217,28 @@
         }
       };
 
-      useEffect(() => {
-        let isMounted = true;
+      const fetchDocuments = useCallback(async () => {
+        setViewState('loading');
+        try {
+          const response = await fetchWithSession(`${API_BASE_URL}/api/v1/documents`);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-        async function fetchDocuments() {
-          setViewState('loading');
-          try {
-            const response = await fetchWithSession(`${API_BASE_URL}/api/v1/documents`);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          const rawList = data.documents || [];
+          const list = groupDocuments(rawList);
 
-            const data = await response.json();
-            const rawList = data.documents || [];
-            const list = groupDocuments(rawList);
-
-            if (isMounted) {
-              setDocuments(list);
-              setViewState(list.length > 0 ? 'data' : 'empty');
-            }
-          } catch (error) {
-            console.error("Failed to load documents:", error);
-            if (isMounted) {
-              setDocuments([]);
-              setViewState('empty');
-            }
-          }
+          setDocuments(list);
+          setViewState(list.length > 0 ? 'data' : 'empty');
+        } catch (error) {
+          console.error("Failed to load documents:", error);
+          setDocuments([]);
+          setViewState('empty');
         }
-
-        fetchDocuments();
-        return () => {
-          isMounted = false;
-        };
       }, []);
+
+      useEffect(() => {
+        fetchDocuments();
+      }, [fetchDocuments]);
 
       // Fetch trie index for search
       useEffect(() => {
@@ -1110,6 +1285,11 @@
             document={selectedDoc}
             isOpen={isModalOpen}
             onClose={handleCloseModal}
+            onActionSuccess={(msg) => {
+              showSuccessMessage(msg);
+              fetchDocuments();
+              handleCloseModal();
+            }}
           />
 
           {confirmingDelete && (
@@ -1282,6 +1462,17 @@
                             {doc.files.length} ไฟล์
                           </span>
                         )}
+                        <span className={`ml-2 text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                          doc.status === 'ACKNOWLEDGED'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : doc.status === 'FORWARDED'
+                            ? 'bg-indigo-100 text-indigo-800'
+                            : doc.status === 'ASSIGNED'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {doc.status === 'ACKNOWLEDGED' ? 'รับทราบแล้ว' : doc.status === 'FORWARDED' ? 'ส่งต่อแล้ว' : doc.status === 'ASSIGNED' ? 'มอบหมายแล้ว' : 'ลงรับแล้ว'}
+                        </span>
                       </div>
 
                       <div className="col-span-6 md:col-span-3 text-xs sm:text-sm text-[#70675D] font-light mt-2 md:mt-0 pl-3 md:pl-0">
