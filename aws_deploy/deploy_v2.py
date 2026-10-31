@@ -32,6 +32,7 @@ V2_DEPENDENCIES = [
     "dnspython>=2.3.0",
     "python-dotenv>=1.0.0",
     "werkzeug>=2.3.0",
+    "pyjwt[crypto]>=2.10.1,<3",
 ]
 
 MICRO_FUNCTIONS = [
@@ -85,7 +86,9 @@ def build_v2_package() -> Path:
         "--python-version",
         "3.11",
         "--python-platform",
-        "linux",
+        "x86_64-manylinux2014",
+        "--only-binary",
+        ":all:",
         *V2_DEPENDENCIES,
         "--target",
         str(build_dir),
@@ -279,6 +282,12 @@ def main():
 
     # 1. AWS Credentials & Storage Setup
     session, account_id, region = get_aws_session()
+    if not os.getenv("COGNITO_USER_POOL_ID") or not os.getenv("COGNITO_CLIENT_ID"):
+        print(
+            "error: COGNITO_USER_POOL_ID and COGNITO_CLIENT_ID must be set. "
+            "Run aws_deploy/setup_cognito.py first."
+        )
+        sys.exit(1)
     mongo_uri = get_mongo_uri()
     role_arn = f"arn:aws:iam::{account_id}:role/LabRole"
 

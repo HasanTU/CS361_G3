@@ -91,13 +91,13 @@ class SearchUseCases:
         self._repo = repository
 
     def get_search_trie(
-        self, user_id: str, is_admin: bool = False
+        self, caller_sub: str, is_admin: bool = False
     ) -> tuple[dict[str, Any], int]:
         """Retrieve documents according to role permissions and build the prefix tree."""
         if is_admin:
             documents = self._repo.find_all()
         else:
-            documents = self._repo.find_by_assigned_user(user_id)
+            documents = self._repo.find_by_assigned_user(caller_sub)
 
         index = TrieSearchIndex()
         index.build_from_documents(documents)

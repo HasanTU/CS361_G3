@@ -4,11 +4,22 @@ import base64
 from email import message_from_bytes
 from email.policy import default as default_policy
 import json
+import logging
 import os
 import re
 from typing import Any, Optional, Tuple
 
 from backend_v2.functions.documents.use_cases import DocumentUseCases
+from backend_v2.shared.auth import (
+    INTERNAL_ERROR_MESSAGE,
+    SERVICE_UNAVAILABLE_MESSAGE,
+    AuthenticationError,
+    AuthServiceUnavailableError,
+    authenticate,
+    require_admin,
+)
+
+logger = logging.getLogger(__name__)
 
 # Module-level lazy singletons for connection reuse across warm invocations
 _repository: Any = None
@@ -23,11 +34,18 @@ def get_use_cases() -> DocumentUseCases:
         from backend_v2.shared.adapters.mongo_document_repository import (
             MongoDocumentRepository,
         )
+        from backend_v2.shared.adapters.cognito_user_directory import (
+            CognitoUserDirectory,
+        )
         from backend_v2.shared.adapters.s3_file_storage import S3FileStorageAdapter
 
         _repository = MongoDocumentRepository()
         _storage = S3FileStorageAdapter()
-        _use_cases = DocumentUseCases(repository=_repository, storage=_storage)
+        _use_cases = DocumentUseCases(
+            repository=_repository,
+            storage=_storage,
+            user_directory=CognitoUserDirectory(),
+        )
     return _use_cases
 
 
@@ -64,146 +82,6 @@ def _json_response(status_code: int, body: Any) -> dict[str, Any]:
 def _error_response(status_code: int, message: str) -> dict[str, Any]:
     """Format a consistent error envelope for client consumption."""
     return _json_response(status_code, {"error": {"message": message}})
-
-
-def _extract_cookie_token(event: dict[str, Any]) -> Optional[str]:
-    """Extract auth_token from Authorization Bearer header, HTTP API cookies array, or cookie header."""
-    headers = event.get("headers") or {}
-
-    # 1. Check Authorization Bearer FIRST (isolated per browser tab via sessionStorage)
-    auth_header = headers.get("authorization") or headers.get("Authorization") or ""
-    if auth_header.startswith("Bearer "):
-        return auth_header.split("Bearer ", 1)[1].strip()
-
-    # 2. Check API Gateway v2 event["cookies"] list
-    raw_cookies = event.get("cookies") or []
-    for item in raw_cookies:
-        if isinstance(item, str) and item.startswith("auth_token="):
-            return item.split("auth_token=", 1)[1].split(";", 1)[0].strip()
-
-    # 3. Check headers cookie string
-    cookie_str = headers.get("cookie") or headers.get("Cookie") or ""
-    if cookie_str:
-        for part in cookie_str.split(";"):
-            part = part.strip()
-            if part.startswith("auth_token="):
-                return part.split("auth_token=", 1)[1].strip()
-
-    return None
-
-
-def _decode_jwt_payload(token: str) -> dict[str, Any]:
-    """Decode unverified JWT claims payload safely without external dependencies."""
-    parts = token.strip().split(".")
-    if len(parts) < 2:
-        raise ValueError("Malformed JWT structure")
-    payload_b64 = parts[1]
-    rem = len(payload_b64) % 4
-    if rem > 0:
-        payload_b64 += "=" * (4 - rem)
-    decoded_bytes = base64.urlsafe_b64decode(payload_b64)
-    return json.loads(decoded_bytes.decode("utf-8"))
-
-
-KNOWN_USER_ALIASES = {
-    # CS361 Project 4 Personas
-    "staff1@tu.ac.th": ["คุณธารินี สุขสวัสดิ์", "staff1", "STAFF-1"],
-    "staff1": ["คุณธารินี สุขสวัสดิ์", "staff1@tu.ac.th", "STAFF-1"],
-    "staff-1": ["คุณธารินี สุขสวัสดิ์", "staff1@tu.ac.th", "STAFF-1"],
-    "คุณธารินี สุขสวัสดิ์": ["staff1@tu.ac.th", "staff1", "STAFF-1"],
-
-    "head1@tu.ac.th": ["อ.ดร.ปกรณ์ สุขใจ", "หัวหน้าสาขาวิชาวิทยาการคอมพิวเตอร์", "หัวหน้าสาขา", "head1", "HEAD-1"],
-    "head1": ["อ.ดร.ปกรณ์ สุขใจ", "head1@tu.ac.th", "หัวหน้าสาขาวิชาวิทยาการคอมพิวเตอร์", "HEAD-1"],
-    "head-1": ["อ.ดร.ปกรณ์ สุขใจ", "head1@tu.ac.th", "หัวหน้าสาขาวิชาวิทยาการคอมพิวเตอร์", "HEAD-1"],
-    "อ.ดร.ปกรณ์ สุขใจ": ["head1@tu.ac.th", "head1", "HEAD-1", "หัวหน้าสาขาวิชาวิทยาการคอมพิวเตอร์"],
-    "หัวหน้าสาขา": ["head1@tu.ac.th", "อ.ดร.ปกรณ์ สุขใจ", "HEAD-1"],
-    "หัวหน้าสาขาวิชาวิทยาการคอมพิวเตอร์": ["head1@tu.ac.th", "อ.ดร.ปกรณ์ สุขใจ", "HEAD-1"],
-
-    "fac_a@tu.ac.th": ["อ.ดร.วรินทร์ พงษ์ดี", "fac_a", "FAC-A"],
-    "fac_a": ["อ.ดร.วรินทร์ พงษ์ดี", "fac_a@tu.ac.th", "FAC-A"],
-    "fac-a": ["อ.ดร.วรินทร์ พงษ์ดี", "fac_a@tu.ac.th", "FAC-A"],
-    "อ.ดร.วรินทร์ พงษ์ดี": ["fac_a@tu.ac.th", "fac_a", "FAC-A"],
-
-    "fac_b@tu.ac.th": ["อ.ดร.ณัฐวุฒิ ศรีวัฒน์", "fac_b", "FAC-B"],
-    "fac_b": ["อ.ดร.ณัฐวุฒิ ศรีวัฒน์", "fac_b@tu.ac.th", "FAC-B"],
-    "fac-b": ["อ.ดร.ณัฐวุฒิ ศรีวัฒน์", "fac_b@tu.ac.th", "FAC-B"],
-    "อ.ดร.ณัฐวุฒิ ศรีวัฒน์": ["fac_b@tu.ac.th", "fac_b", "FAC-B"],
-
-    # Existing Developer Accounts
-    "admin1@tu.ac.th": ["Kasidit", "admin1", "Admin One"],
-    "kasidit": ["admin1@tu.ac.th", "admin1", "Admin One"],
-    "admin1": ["admin1@tu.ac.th", "Kasidit", "Admin One"],
-    "admin2@tu.ac.th": ["Saowaluk", "admin2", "Admin Two"],
-    "saowaluk": ["admin2@tu.ac.th", "admin2", "Admin Two"],
-    "admin2": ["admin2@tu.ac.th", "Saowaluk", "Admin Two"],
-    "user1@tu.ac.th": ["Prapaporn", "user1", "User One"],
-    "prapaporn": ["user1@tu.ac.th", "user1", "User One"],
-    "user1": ["user1@tu.ac.th", "Prapaporn", "User One"],
-    "user one": ["user1@tu.ac.th", "Prapaporn", "user1"],
-    "user2@tu.ac.th": ["Songsakdi", "user2", "User Two"],
-    "songsakdi": ["user2@tu.ac.th", "user2", "User Two"],
-    "user2": ["user2@tu.ac.th", "Songsakdi", "User Two"],
-    "user two": ["user2@tu.ac.th", "Songsakdi", "user2"],
-    "user3@tu.ac.th": ["Wilawan", "user3", "User Three"],
-    "wilawan": ["user3@tu.ac.th", "user3", "User Three"],
-    "user3": ["user3@tu.ac.th", "Wilawan", "User Three"],
-    "user three": ["user3@tu.ac.th", "Wilawan", "user3"],
-}
-
-
-def _parse_auth(event: dict[str, Any]) -> Tuple[list[str], bool]:
-    """Authenticate request from Cognito JWT cookie/token.
-
-    Returns:
-        Tuple[list[str], bool]: (identities_list, is_admin)
-    Raises:
-        PermissionError: If unauthenticated or token is malformed.
-    """
-    token = _extract_cookie_token(event)
-    if not token:
-        raise PermissionError("Authentication is required")
-
-    try:
-        claims = _decode_jwt_payload(token)
-    except Exception as err:
-        raise PermissionError(f"Invalid authentication token: {err}") from err
-
-    # Extract all identity candidates (email, display name, username, sub UUID)
-    raw_candidates = [
-        claims.get("email"),
-        claims.get("name"),
-        claims.get("cognito:username"),
-        claims.get("username"),
-        claims.get("sub"),
-    ]
-    identities = [str(x).strip() for x in raw_candidates if x and str(x).strip()]
-    if not identities:
-        raise PermissionError("Token contains no valid user identity")
-
-    # Expand identities using known seed aliases to bridge Cognito & Mongo records
-    expanded_identities = list(identities)
-    for ident in identities:
-        clean_key = ident.strip().lower()
-        if clean_key in KNOWN_USER_ALIASES:
-            for alias in KNOWN_USER_ALIASES[clean_key]:
-                if alias not in expanded_identities:
-                    expanded_identities.append(alias)
-    identities = expanded_identities
-
-    # Check for admin role via groups, custom attribute, or known admin email/name/username
-    groups = [str(g).upper() for g in claims.get("cognito:groups", [])]
-    role = str(claims.get("custom:role") or claims.get("role") or "").upper()
-    ident_strings = [str(x).strip().lower() for x in identities]
-    has_admin_ident = any(
-        ("admin" in s)
-        or ("staff" in s)
-        or (s in ["admin1@tu.ac.th", "admin2@tu.ac.th", "kasidit", "saowaluk", "staff1@tu.ac.th", "staff-1", "ธารินี", "คุณธารินี สุขสวัสดิ์"])
-        for s in ident_strings
-    )
-    is_admin = ("ADMIN" in groups) or (role == "ADMIN") or has_admin_ident
-    print(f"[AUTH_DEBUG] identities={identities}, is_admin={is_admin}, groups={groups}, role={role}")
-
-    return identities, is_admin
 
 
 def _parse_multipart_body(
@@ -263,17 +141,16 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
             "body": "",
         }
 
-    use_cases = get_use_cases()
-
     try:
-        # 2. Authenticate request
-        user_identities, is_admin = _parse_auth(event)
-        primary_id = user_identities[0]
+        use_cases = get_use_cases()
+
+        # 2. Authenticate request (verified Cognito ID token)
+        caller = authenticate(event)
 
         # 3. Route Dispatch
         # GET /api/v1/documents - List documents
         if method == "GET" and (raw_path == "/api/v1/documents" or raw_path == "/api/v1/documents/"):
-            documents = use_cases.list_documents(user_id=user_identities, is_admin=is_admin)
+            documents = use_cases.list_documents(caller_sub=caller.sub, is_admin=caller.is_admin)
             return _json_response(200, {
                 "documents": [d.to_dict() for d in documents],
                 "count": len(documents),
@@ -281,8 +158,7 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
 
         # POST /api/v1/documents - Register document (Admin only)
         if method == "POST" and (raw_path == "/api/v1/documents" or raw_path == "/api/v1/documents/"):
-            if not is_admin:
-                return _error_response(403, "Admin privilege required to register documents")
+            require_admin(caller, "Admin privilege required to register documents")
 
             headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
             content_type = headers.get("content-type", "")
@@ -299,20 +175,16 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
             if missing:
                 return _error_response(400, f"Missing required fields: {', '.join(missing)}")
 
-            receiver = form_fields["receiver"].strip()
-            recipients = [receiver] if receiver else []
-
             doc = use_cases.register_document(
                 title=form_fields["title"],
                 document_date=form_fields["document_date"],
                 sender=form_fields["sender"],
-                receiver=receiver,
+                receiver=form_fields["receiver"],
                 file_name=file_info["file_name"],
                 file_bytes=file_info["file_bytes"],
                 content_type=file_info["content_type"],
-                uploaded_by=primary_id,
+                uploaded_by=caller.actor_label,
                 document_type_id=form_fields.get("document_type_id"),
-                recipient_ids=recipients,
             )
             return _json_response(201, {
                 "message": "Document registered successfully",
@@ -325,13 +197,15 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
             doc_id = assign_match.group(1)
             body = json.loads(event.get("body") or "{}")
             recipients = body.get("recipients", [])
-            note = body.get("note", "")
+            if not isinstance(recipients, list) or not all(isinstance(r, str) for r in recipients):
+                raise ValueError("recipients must be a list of strings")
             doc = use_cases.assign_document(
                 document_id=doc_id,
-                recipient_ids=recipients,
-                assigned_by=user_identities,
-                is_admin=is_admin,
-                note=note,
+                recipients=recipients,
+                caller_sub=caller.sub,
+                actor=caller.actor_label,
+                is_admin=caller.is_admin,
+                note=body.get("note", ""),
             )
             return _json_response(200, {
                 "message": "Document assigned successfully",
@@ -348,8 +222,9 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
             doc = use_cases.update_document_status(
                 document_id=doc_id,
                 new_status=new_status,
-                changed_by=user_identities,
-                is_admin=is_admin,
+                caller_sub=caller.sub,
+                actor=caller.actor_label,
+                is_admin=caller.is_admin,
                 note=note,
             )
             return _json_response(200, {
@@ -361,7 +236,7 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
         if file_match and method == "GET":
             doc_id = file_match.group(1)
             file_path, doc = use_cases.get_document_file(
-                document_id=doc_id, user_id=user_identities, is_admin=is_admin
+                document_id=doc_id, caller_sub=caller.sub, is_admin=caller.is_admin
             )
             with open(file_path, "rb") as f:
                 content = f.read()
@@ -389,18 +264,22 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
         if detail_match and method == "GET":
             doc_id = detail_match.group(1)
             doc = use_cases.get_document_details(
-                document_id=doc_id, user_id=user_identities, is_admin=is_admin
+                document_id=doc_id, caller_sub=caller.sub, is_admin=caller.is_admin
             )
             return _json_response(200, doc.to_dict())
 
         return _error_response(404, f"Route not found: {method} {raw_path}")
 
+    except AuthenticationError as err:
+        return _error_response(401, str(err))
+    except AuthServiceUnavailableError:
+        return _error_response(503, SERVICE_UNAVAILABLE_MESSAGE)
     except PermissionError as err:
-        status = 401 if "Authentication is required" in str(err) or "Invalid authentication token" in str(err) else 403
-        return _error_response(status, str(err))
+        return _error_response(403, str(err))
     except LookupError as err:
         return _error_response(404, str(err))
     except ValueError as err:
         return _error_response(400, str(err))
-    except Exception as err:
-        return _error_response(500, f"Internal server error: {str(err)}")
+    except Exception:
+        logger.exception("Unhandled error in documents handler")
+        return _error_response(500, INTERNAL_ERROR_MESSAGE)

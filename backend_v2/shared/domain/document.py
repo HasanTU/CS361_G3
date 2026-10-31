@@ -149,23 +149,13 @@ class Document:
         )
         self.transition_status(target_status, changed_by=assigned_by, note=note)
 
-    def is_accessible_by(self, user_id: Any, is_admin: bool = False) -> bool:
-        """Determine whether a given user has read permissions for this document."""
+    def is_accessible_by(self, user_sub: str, is_admin: bool = False) -> bool:
+        """Determine whether a caller may read this document (exact Cognito sub match)."""
         if is_admin:
             return True
-
-        if isinstance(user_id, (list, tuple, set)):
-            candidates = [str(x).strip().lower() for x in user_id if x and str(x).strip()]
-        else:
-            candidates = [str(user_id).strip().lower()] if user_id else []
-
-        assigned_lower = [str(x).strip().lower() for x in self.assigned_to]
-        receiver_clean = self.receiver.strip().lower()
-
-        for cand in candidates:
-            if (cand in assigned_lower) or (cand == receiver_clean):
-                return True
-        return False
+        if not isinstance(user_sub, str) or not user_sub.strip():
+            return False
+        return user_sub.strip() in self.assigned_to
 
     def to_dict(self) -> dict[str, Any]:
         """Convert domain entity to a plain dictionary (for API or database)."""

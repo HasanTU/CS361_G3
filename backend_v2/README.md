@@ -144,10 +144,11 @@ All endpoints are exposed through **AWS API Gateway HTTP API (v2)**:
 | `POST` | `/api/v1/auth/login` | `functions/auth/` | Public | Authenticates via Cognito, issues `HttpOnly` cookie |
 | `POST` | `/api/v1/auth/logout` | `functions/auth/` | Authenticated | Clears session cookie |
 | `GET` | `/api/v1/auth/me` | `functions/auth/` | Authenticated | Returns current authenticated user and roles |
+| `GET` | `/api/v1/auth/users` | `functions/auth/` | Authenticated | Lists users for recipient selection |
 | `GET` | `/api/v1/documents` | `functions/documents/` | Role-Filtered | ADMIN sees all; USER sees only assigned docs |
 | `POST` | `/api/v1/documents` | `functions/documents/` | `ADMIN` only | Uploads file and registers document metadata |
 | `GET` | `/api/v1/documents/{id}` | `functions/documents/` | Role-Filtered | Retrieves single document details |
-| `POST` | `/api/v1/documents/{id}/assign` | `functions/documents/` | `ADMIN` only | Assigns/re-routes document to recipient users |
+| `POST` | `/api/v1/documents/{id}/assign` | `functions/documents/` | `ADMIN` or assigned user | Assigns/re-routes document to recipient users |
 | `PATCH` | `/api/v1/documents/{id}/status` | `functions/documents/` | Assigned User | Updates workflow state (`ACKNOWLEDGED`, etc.) |
 | `GET` | `/api/v1/documents/{id}/file` | `functions/documents/` | Role-Filtered | Streams binary document file |
 | `GET` | `/api/v1/search/trie` | `functions/search/` | Authenticated | Retrieves prefix tree for instantaneous search |
@@ -204,3 +205,5 @@ def test_document_creation_flow():
 > **Token Security Architecture (No `localStorage`)**  
 > In accordance with secure cloud application design, JWT authentication tokens are **never stored in `localStorage` or `sessionStorage`** on the client, eliminating the risk of Cross-Site Scripting (XSS) token theft.  
 > Authentication sessions are governed strictly via **`HttpOnly; Secure; SameSite=None` Cookies** issued by the auth handler and verified at the API Gateway / Lambda boundary.
+
+Each Lambda verifies the Cognito ID token (RS256 signature against the user pool JWKS, issuer, audience, expiry and `token_use`) before any operation.

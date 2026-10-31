@@ -29,8 +29,8 @@ class DocumentRepositoryPort(ABC):
         pass
 
     @abstractmethod
-    def find_by_assigned_user(self, user_id: str) -> list[Document]:
-        """Retrieve all documents where the given user_id is in assigned_to."""
+    def find_by_assigned_user(self, user_sub: str) -> list[Document]:
+        """Retrieve all documents whose assigned_to list contains the given Cognito sub (exact match)."""
         pass
 
     @abstractmethod

@@ -1,11 +1,20 @@
 """AWS Lambda entrypoint handler for Auth Micro-Lambda."""
 
-import base64
 import json
+import logging
 import os
 from typing import Any, Optional
 
 from backend_v2.functions.auth.use_cases import AuthUseCases
+from backend_v2.shared.auth import (
+    INTERNAL_ERROR_MESSAGE,
+    SERVICE_UNAVAILABLE_MESSAGE,
+    AuthenticationError,
+    AuthServiceUnavailableError,
+    authenticate,
+)
+
+logger = logging.getLogger(__name__)
 
 _use_cases: Optional[AuthUseCases] = None
 _current_origin: str = "*"
@@ -15,7 +24,11 @@ def get_use_cases() -> AuthUseCases:
     """Lazily initialize and return the AuthUseCases orchestrator."""
     global _use_cases
     if _use_cases is None:
-        _use_cases = AuthUseCases()
+        from backend_v2.shared.adapters.cognito_user_directory import (
+            CognitoUserDirectory,
+        )
+
+        _use_cases = AuthUseCases(user_directory=CognitoUserDirectory())
     return _use_cases
 
 
@@ -60,45 +73,6 @@ def _error_response(status_code: int, message: str) -> dict[str, Any]:
     return _json_response(status_code, {"error": {"message": message}})
 
 
-def _extract_cookie_token(event: dict[str, Any]) -> Optional[str]:
-    """Extract auth_token from Authorization Bearer header, HTTP API cookies array, or cookie header."""
-    headers = event.get("headers") or {}
-
-    # 1. Check Authorization Bearer FIRST (isolated per browser tab via sessionStorage)
-    auth_header = headers.get("authorization") or headers.get("Authorization") or ""
-    if auth_header.startswith("Bearer "):
-        return auth_header.split("Bearer ", 1)[1].strip()
-
-    # 2. Check API Gateway v2 event["cookies"] list
-    raw_cookies = event.get("cookies") or []
-    for item in raw_cookies:
-        if isinstance(item, str) and item.startswith("auth_token="):
-            return item.split("auth_token=", 1)[1].split(";", 1)[0].strip()
-
-    # 3. Check headers cookie string
-    cookie_str = headers.get("cookie") or headers.get("Cookie") or ""
-    if cookie_str:
-        for part in cookie_str.split(";"):
-            part = part.strip()
-            if part.startswith("auth_token="):
-                return part.split("auth_token=", 1)[1].strip()
-
-    return None
-
-
-def _decode_jwt_payload(token: str) -> dict[str, Any]:
-    """Decode unverified JWT claims safely without external dependencies."""
-    parts = token.strip().split(".")
-    if len(parts) < 2:
-        raise ValueError("Malformed JWT structure")
-    payload_b64 = parts[1]
-    rem = len(payload_b64) % 4
-    if rem > 0:
-        payload_b64 += "=" * (4 - rem)
-    decoded_bytes = base64.urlsafe_b64decode(payload_b64)
-    return json.loads(decoded_bytes.decode("utf-8"))
-
-
 def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]:
     """AWS Lambda entrypoint handler for Auth Micro-Lambda."""
     global _current_origin
@@ -117,9 +91,9 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
             "body": "",
         }
 
-    use_cases = get_use_cases()
-
     try:
+        use_cases = get_use_cases()
+
         # POST /api/v1/auth/login
         if method == "POST" and (
             raw_path == "/api/v1/auth/login" or raw_path.endswith("/auth/login")
@@ -151,6 +125,7 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
         if method == "GET" and (
             raw_path == "/api/v1/auth/users" or raw_path.endswith("/auth/users")
         ):
+            authenticate(event)
             users = use_cases.list_users()
             return _json_response(200, {"users": users})
 
@@ -158,17 +133,20 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
         if method == "GET" and (
             raw_path == "/api/v1/auth/me" or raw_path.endswith("/auth/me")
         ):
-            token = _extract_cookie_token(event)
-            if not token:
-                return _error_response(401, "Authentication is required")
-            claims = _decode_jwt_payload(token)
-            return _json_response(200, {"user": claims})
+            caller = authenticate(event)
+            return _json_response(200, {"user": caller.claims})
 
         return _error_response(404, f"Route not found: {method} {raw_path}")
 
+    except AuthenticationError as err:
+        return _error_response(401, str(err))
+    except AuthServiceUnavailableError:
+        return _error_response(503, SERVICE_UNAVAILABLE_MESSAGE)
     except PermissionError as err:
+        # Login: "Invalid email or password"
         return _error_response(401, str(err))
     except ValueError as err:
         return _error_response(400, str(err))
-    except Exception as err:
-        return _error_response(500, f"Internal server error: {str(err)}")
+    except Exception:
+        logger.exception("Unhandled error in auth handler")
+        return _error_response(500, INTERNAL_ERROR_MESSAGE)
