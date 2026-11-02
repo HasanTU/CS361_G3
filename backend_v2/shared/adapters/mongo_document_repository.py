@@ -33,7 +33,16 @@ class MongoDocumentRepository(DocumentRepositoryPort):
     def collection(self) -> Collection:
         """Lazily initialize and return the MongoDB collection handle."""
         if self._collection is None:
-            self._client = MongoClient(self._uri)
+            # maxPoolSize=1: each Lambda container handles one request at a time,
+            # so a single connection is optimal.  This prevents connection exhaustion
+            # on Atlas M0 (~500 total connections) when many containers run in parallel.
+            self._client = MongoClient(
+                self._uri,
+                maxPoolSize=1,
+                connectTimeoutMS=8_000,
+                serverSelectionTimeoutMS=8_000,
+                socketTimeoutMS=15_000,
+            )
             # Default database name is parsed directly from the URI (e.g., /e_mailbox)
             db = (
                 self._client[self._database_name]
