@@ -1,6 +1,7 @@
 """Prefix tree (Trie) search use cases and index builder."""
 
-from typing import Any, Optional
+import time
+from typing import Any, Callable, Optional
 
 from backend_v2.shared.ports.document_repository import DocumentRepositoryPort
 
@@ -87,13 +88,44 @@ class TrieSearchIndex:
 class SearchUseCases:
     """Orchestrator for document search operations adhering to Clean Architecture."""
 
-    def __init__(self, repository: DocumentRepositoryPort):
+    # Per-container trie cache: keyed by (caller_sub, is_admin) so USER caches
+    # are isolated from each other and from the ADMIN view.
+    _TRIE_TTL_SECONDS: float = 30.0
+
+    def __init__(
+        self,
+        repository: DocumentRepositoryPort,
+        trie_ttl_seconds: Optional[float] = None,
+        clock: Callable[[], float] = time.monotonic,
+    ):
         self._repo = repository
+        self._ttl = trie_ttl_seconds if trie_ttl_seconds is not None else self._TRIE_TTL_SECONDS
+        self._clock = clock
+        # _trie_cache: (caller_sub, is_admin) -> (dict, count, cached_at)
+        self._trie_cache: dict[tuple[str, bool], tuple[dict[str, Any], int, float]] = {}
+
+    def invalidate_trie_cache(self) -> None:
+        """Clear all cached trie entries.  Call after any document mutation."""
+        self._trie_cache.clear()
 
     def get_search_trie(
         self, caller_sub: str, is_admin: bool = False
     ) -> tuple[dict[str, Any], int]:
-        """Retrieve documents according to role permissions and build the prefix tree."""
+        """Return a cached trie dict and document count, refreshed after TTL expires.
+
+        Rebuilding the trie on every request requires a full MongoDB scan and
+        O(n * avg_word_len * avg_word_count) insertions.  A 30-second in-process
+        cache makes repeated searches free for warm Lambda containers.
+        """
+        cache_key = (caller_sub if not is_admin else "_admin", is_admin)
+        now = self._clock()
+
+        cached = self._trie_cache.get(cache_key)
+        if cached is not None:
+            trie_dict, count, cached_at = cached
+            if now - cached_at < self._ttl:
+                return trie_dict, count
+
         if is_admin:
             documents = self._repo.find_all()
         else:
@@ -101,4 +133,8 @@ class SearchUseCases:
 
         index = TrieSearchIndex()
         index.build_from_documents(documents)
-        return index.to_dict(), len(documents)
+        trie_dict = index.to_dict()
+        count = len(documents)
+
+        self._trie_cache[cache_key] = (trie_dict, count, now)
+        return trie_dict, count
