@@ -11,6 +11,9 @@ from botocore.exceptions import ClientError
 
 from backend_v2.shared.ports.file_storage import FileStoragePort
 
+# Lambda /tmp default is 512 MB; keep usage well below that.
+_TMP_MAX_BYTES: int = 200 * 1024 * 1024  # 200 MB soft cap
+
 
 class S3FileStorageAdapter(FileStoragePort):
     """Concrete storage adapter persisting document files to Amazon S3."""
@@ -78,8 +81,35 @@ class S3FileStorageAdapter(FileStoragePort):
             "file_size": len(file_bytes),
         }
 
+    def _evict_tmp_if_needed(self) -> None:
+        """Delete oldest cached files in /tmp/uploads when total size exceeds the soft cap.
+
+        Lambda /tmp is 512 MB by default and accumulates files across warm invocations.
+        Evicting LRU files when we breach 200 MB keeps the container healthy long-term.
+        """
+        files = list(self._temp_dir.glob("*"))
+        total = sum(f.stat().st_size for f in files if f.is_file())
+        if total <= _TMP_MAX_BYTES:
+            return
+
+        # Sort by last-access time (oldest first) and remove until under the cap
+        files_with_time = sorted(
+            ((f.stat().st_atime, f) for f in files if f.is_file()),
+            key=lambda x: x[0],
+        )
+        for _, f in files_with_time:
+            if total <= _TMP_MAX_BYTES:
+                break
+            size = f.stat().st_size
+            try:
+                f.unlink()
+                total -= size
+            except OSError:
+                pass  # file may have already been removed; skip silently
+
     def get_file(self, file_path: str) -> Path:
         """Download an S3 document object into the local Lambda /tmp cache for streaming."""
+        self._evict_tmp_if_needed()
         s3_key = str(file_path).lstrip("/")
         if "uploads/" in s3_key:
             s3_key = s3_key[s3_key.find("uploads/"):]
