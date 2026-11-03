@@ -1235,8 +1235,18 @@
       );
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<StaffDocumentIngestion />);
+    // Only mount the React app if the current session is confirmed admin.
+    // The inline guard at the top of <head> calls window.location.replace() for
+    // non-admins, but that redirect is asynchronous — React's useEffect can fire
+    // API calls (GET /auth/users, GET /documents) before the browser navigates away.
+    // Gating createRoot here prevents any API calls from being made by non-admins.
+    (function () {
+      var s = null;
+      try { s = JSON.parse(sessionStorage.getItem('emb_session')); } catch (e) { }
+      if (!s || s.role !== 'admin') return; // redirect already queued by head guard
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<StaffDocumentIngestion />);
+    })();
   </script>
 </body>
 
