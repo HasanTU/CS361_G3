@@ -12,6 +12,7 @@ from backend_v2.shared.auth import (
     AuthenticationError,
     AuthServiceUnavailableError,
     authenticate,
+    require_admin,
 )
 
 logger = logging.getLogger(__name__)
@@ -121,11 +122,12 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
                 200, {"message": "Logged out successfully"}, cookie=clear_cookie
             )
 
-        # GET /api/v1/auth/users
+        # GET /api/v1/auth/users  (admin only)
         if method == "GET" and (
             raw_path == "/api/v1/auth/users" or raw_path.endswith("/auth/users")
         ):
-            authenticate(event)
+            caller = authenticate(event)
+            require_admin(caller, "Admin privilege required to list users")
             users = use_cases.list_users()
             return _json_response(200, {"users": users})
 
@@ -143,8 +145,7 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
     except AuthServiceUnavailableError:
         return _error_response(503, SERVICE_UNAVAILABLE_MESSAGE)
     except PermissionError as err:
-        # Login: "Invalid email or password"
-        return _error_response(401, str(err))
+        return _error_response(403, str(err))
     except ValueError as err:
         return _error_response(400, str(err))
     except Exception:

@@ -92,7 +92,7 @@ class AuthUseCases:
         except ClientError as err:
             code = err.response.get("Error", {}).get("Code", "")
             if code in INVALID_CREDENTIAL_CODES:
-                raise PermissionError("Invalid email or password") from None
+                raise AuthenticationError("Invalid email or password") from None
             logger.warning("Cognito initiate_auth failed with code %s", code)
             raise AuthServiceUnavailableError(SERVICE_UNAVAILABLE_MESSAGE) from None
         except BotoCoreError as err:
@@ -102,7 +102,7 @@ class AuthUseCases:
         id_token = (resp.get("AuthenticationResult") or {}).get("IdToken")
         if not id_token:
             # For example a ChallengeName response: no session can be issued.
-            raise PermissionError("Invalid email or password")
+            raise AuthenticationError("Invalid email or password")
 
         try:
             claims = (self._verifier or get_token_verifier()).verify(id_token)
