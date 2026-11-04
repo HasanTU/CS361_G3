@@ -545,14 +545,18 @@
           const res = await fetchWithSession(downloadUrl);
           if (!res.ok) throw new Error('ดาวน์โหลดไม่สำเร็จ');
           const blob = await res.blob();
-          const url = window.URL.createObjectURL(blob);
+          const fileBlob = new Blob([blob], { type: res.headers.get('content-type') || 'application/pdf' });
+          const url = window.URL.createObjectURL(fileBlob);
           const a = document.createElement('a');
+          a.style.display = 'none';
           a.href = url;
           a.download = fileName;
           document.body.appendChild(a);
           a.click();
-          a.remove();
-          window.URL.revokeObjectURL(url);
+          setTimeout(() => {
+            a.remove();
+            window.URL.revokeObjectURL(url);
+          }, 10000);
         } catch (err) {
           alert('เกิดข้อผิดพลาดในการดาวน์โหลด: ' + (err.message || 'ไม่สามารถโหลดไฟล์ได้'));
         }
@@ -1168,14 +1172,18 @@
           const res = await fetchWithSession(downloadUrl);
           if (!res.ok) throw new Error('ดาวน์โหลดไม่สำเร็จ');
           const blob = await res.blob();
-          const url = window.URL.createObjectURL(blob);
+          const fileBlob = new Blob([blob], { type: res.headers.get('content-type') || 'application/pdf' });
+          const url = window.URL.createObjectURL(fileBlob);
           const a = document.createElement('a');
+          a.style.display = 'none';
           a.href = url;
           a.download = fileName;
           document.body.appendChild(a);
           a.click();
-          a.remove();
-          window.URL.revokeObjectURL(url);
+          setTimeout(() => {
+            a.remove();
+            window.URL.revokeObjectURL(url);
+          }, 10000);
         } catch (err) {
           alert('เกิดข้อผิดพลาดในการดาวน์โหลด: ' + (err.message || 'ไม่สามารถโหลดไฟล์ได้'));
         }

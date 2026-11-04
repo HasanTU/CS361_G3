@@ -162,14 +162,18 @@ export function DocumentPreviewModal({ document: doc, isOpen, onClose }) {
       const res = await fetch(downloadUrl, { headers, credentials: 'include' });
       if (!res.ok) throw new Error('Download failed');
       const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
+      const fileBlob = new Blob([blob], { type: res.headers.get('content-type') || 'application/pdf' });
+      const url = window.URL.createObjectURL(fileBlob);
       const a = document.createElement('a');
+      a.style.display = 'none';
       a.href = url;
       a.download = doc.file_name || `${doc.title || 'document'}.pdf`;
       document.body.appendChild(a);
       a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      setTimeout(() => {
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      }, 10000);
     } catch (err) {
       alert('ดาวน์โหลดไม่สำเร็จ: ' + err.message);
     }
@@ -488,14 +492,18 @@ export default function LecturerDocumentView({
       const res = await fetch(downloadUrl, { headers, credentials: 'include' });
       if (!res.ok) throw new Error('Download failed');
       const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
+      const fileBlob = new Blob([blob], { type: res.headers.get('content-type') || 'application/pdf' });
+      const url = window.URL.createObjectURL(fileBlob);
       const a = document.createElement('a');
+      a.style.display = 'none';
       a.href = url;
       a.download = doc.file_name || `${doc.title || 'document'}.pdf`;
       document.body.appendChild(a);
       a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      setTimeout(() => {
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      }, 10000);
     } catch (err) {
       alert('ดาวน์โหลดไม่สำเร็จ: ' + err.message);
     }
