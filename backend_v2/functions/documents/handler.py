@@ -268,6 +268,51 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
             )
             return _json_response(200, doc.to_dict())
 
+        # PATCH /api/v1/documents/{id} - Edit document
+        if detail_match and method == "PATCH":
+            doc_id = detail_match.group(1)
+            headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
+            content_type = headers.get("content-type", "")
+
+            form_fields: dict[str, str] = {}
+            file_info: Optional[dict[str, Any]] = None
+
+            if content_type.startswith("multipart/form-data"):
+                form_fields, file_info = _parse_multipart_body(event, content_type)
+            elif content_type.startswith("application/json"):
+                form_fields = json.loads(event.get("body") or "{}")
+
+            doc = use_cases.edit_document(
+                document_id=doc_id,
+                caller_sub=caller.sub,
+                actor=caller.actor_label,
+                is_admin=caller.is_admin,
+                title=form_fields.get("title"),
+                document_date=form_fields.get("document_date"),
+                sender=form_fields.get("sender"),
+                receiver=form_fields.get("receiver"),
+                replacement_file_name=file_info["file_name"] if file_info else None,
+                replacement_file_bytes=file_info["file_bytes"] if file_info else None,
+                replacement_content_type=file_info["content_type"] if file_info else None,
+            )
+            return _json_response(200, {
+                "message": "Document updated successfully",
+                "document": doc.to_dict(),
+            })
+
+        # DELETE /api/v1/documents/{id} - Delete document
+        if detail_match and method == "DELETE":
+            doc_id = detail_match.group(1)
+            use_cases.delete_document(
+                document_id=doc_id,
+                caller_sub=caller.sub,
+                is_admin=caller.is_admin,
+            )
+            return _json_response(200, {
+                "message": "Document deleted successfully",
+                "id": doc_id,
+            })
+
         return _error_response(404, f"Route not found: {method} {raw_path}")
 
     except AuthenticationError as err:

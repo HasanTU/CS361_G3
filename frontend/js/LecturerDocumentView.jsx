@@ -61,13 +61,19 @@ export function DocumentPreviewModal({ document: doc, isOpen, onClose }) {
       setIsPdf(true);
       setIsImage(false);
       if (window.pdfjsLib) {
-        window.pdfjsLib.getDocument(fileSrc).promise.then(
-          (pdf) => {
+        const token = sessionStorage.getItem('emb_token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        fetch(fileSrc, { headers, credentials: 'include' })
+          .then((res) => {
+            if (!res.ok) throw new Error('Failed to load PDF');
+            return res.arrayBuffer();
+          })
+          .then((data) => window.pdfjsLib.getDocument({ data }).promise)
+          .then((pdf) => {
             setPdfDoc(pdf);
             setTotalPages(pdf.numPages);
-          },
-          () => setPdfDoc(null)
-        );
+          })
+          .catch(() => setPdfDoc(null));
       }
     } else if (isImageFile && fileSrc) {
       setIsPdf(false);
@@ -147,10 +153,26 @@ export function DocumentPreviewModal({ document: doc, isOpen, onClose }) {
     }
   };
 
-  const handleDownload = (e) => {
+  const handleDownload = async (e) => {
     e.stopPropagation();
     const downloadUrl = `${API_BASE_URL}/api/v1/documents/${doc.id}/file?download=true`;
-    window.open(downloadUrl, '_blank');
+    try {
+      const token = sessionStorage.getItem('emb_token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(downloadUrl, { headers, credentials: 'include' });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.file_name || `${doc.title || 'document'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('ดาวน์โหลดไม่สำเร็จ: ' + err.message);
+    }
   };
 
   return (
@@ -458,9 +480,25 @@ export default function LecturerDocumentView({
     setSelectedDocument(null);
   };
 
-  const handleDownload = (doc) => {
+  const handleDownload = async (doc) => {
     const downloadUrl = `${API_BASE_URL}/api/v1/documents/${doc.id}/file?download=true`;
-    window.open(downloadUrl, '_blank');
+    try {
+      const token = sessionStorage.getItem('emb_token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(downloadUrl, { headers, credentials: 'include' });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.file_name || `${doc.title || 'document'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('ดาวน์โหลดไม่สำเร็จ: ' + err.message);
+    }
   };
 
   const handleStartEdit = (doc) => {

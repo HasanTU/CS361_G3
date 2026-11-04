@@ -348,6 +348,7 @@
       const [pdfDoc, setPdfDoc] = useState(null);
       const [isPdf, setIsPdf] = useState(false);
       const [isImage, setIsImage] = useState(false);
+      const [previewImageUrl, setPreviewImageUrl] = useState('');
       const [isAcknowledging, setIsAcknowledging] = useState(false);
       const [showForwardModal, setShowForwardModal] = useState(false);
       const [forwardTarget, setForwardTarget] = useState('อ.ดร.ณัฐวุฒิ ศรีวัฒน์');
@@ -402,22 +403,37 @@
           || /\.(png|jpg|jpeg)(?:$|[?#])/i.test(fileSrc);
 
         setPdfDoc(null);
+        setPreviewImageUrl('');
+
         if (isPdfFile && fileSrc) {
           setIsPdf(true);
           setIsImage(false);
           if (window.pdfjsLib) {
-            window.pdfjsLib.getDocument(fileSrc).promise.then(
-              (pdf) => {
+            fetchWithSession(fileSrc)
+              .then((res) => {
+                if (!res.ok) throw new Error('Failed to load PDF');
+                return res.arrayBuffer();
+              })
+              .then((data) => window.pdfjsLib.getDocument({ data }).promise)
+              .then((pdf) => {
                 setPdfDoc(pdf);
                 setTotalPages(pdf.numPages);
-              },
-              () => setPdfDoc(null)
-            );
+              })
+              .catch(() => setPdfDoc(null));
           }
         } else if (isImageFile && fileSrc) {
           setIsPdf(false);
           setIsImage(true);
           setTotalPages(1);
+          fetchWithSession(fileSrc)
+            .then((res) => {
+              if (!res.ok) throw new Error('Failed to load image');
+              return res.blob();
+            })
+            .then((blob) => {
+              setPreviewImageUrl(URL.createObjectURL(blob));
+            })
+            .catch(() => setPreviewImageUrl(fileSrc));
         } else {
           setIsPdf(false);
           setIsImage(false);
@@ -519,12 +535,27 @@
         }
       };
 
-      const handleDownload = (e) => {
+      const handleDownload = async (e) => {
         e.stopPropagation();
         const activeFileItem = filesList[currentFileIndex] || filesList[0];
         const fileId = (activeFileItem && activeFileItem.id) || doc.id;
+        const fileName = (activeFileItem && activeFileItem.name) || doc.file_name || `${doc.title || 'document'}.pdf`;
         const downloadUrl = `${API_BASE_URL}/api/v1/documents/${fileId}/file?download=true`;
-        window.open(downloadUrl, '_blank');
+        try {
+          const res = await fetchWithSession(downloadUrl);
+          if (!res.ok) throw new Error('ดาวน์โหลดไม่สำเร็จ');
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        } catch (err) {
+          alert('เกิดข้อผิดพลาดในการดาวน์โหลด: ' + (err.message || 'ไม่สามารถโหลดไฟล์ได้'));
+        }
       };
 
       // Mouse drag start
@@ -878,8 +909,8 @@
             >
               {isPdf && pdfDoc ? (
                 <canvas ref={canvasRef} className="max-w-full max-h-full object-contain pointer-events-none select-none" />
-              ) : isImage && activeFile && activeFile.url ? (
-                <img src={activeFile.url} alt="Preview" className="max-w-full max-h-full object-contain pointer-events-none select-none" />
+              ) : isImage && (previewImageUrl || (activeFile && activeFile.url)) ? (
+                <img src={previewImageUrl || activeFile.url} alt="Preview" className="max-w-full max-h-full object-contain pointer-events-none select-none" />
               ) : (
                 <div className="flex flex-col items-center justify-center text-center p-8 text-[#70675D]">
                   <span className="text-xl sm:text-2xl font-light tracking-wide text-[#70675D]">
@@ -1129,10 +1160,25 @@
         setSelectedDoc(null);
       };
 
-      const handleDirectDownload = (doc) => {
+      const handleDirectDownload = async (doc) => {
         const fileId = (doc.files && doc.files.length > 0) ? doc.files[0].id : doc.id;
+        const fileName = doc.file_name || `${doc.title || 'document'}.pdf`;
         const downloadUrl = `${API_BASE_URL}/api/v1/documents/${fileId}/file?download=true`;
-        window.open(downloadUrl, '_blank');
+        try {
+          const res = await fetchWithSession(downloadUrl);
+          if (!res.ok) throw new Error('ดาวน์โหลดไม่สำเร็จ');
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        } catch (err) {
+          alert('เกิดข้อผิดพลาดในการดาวน์โหลด: ' + (err.message || 'ไม่สามารถโหลดไฟล์ได้'));
+        }
       };
 
       const handleStartEdit = (doc) => {

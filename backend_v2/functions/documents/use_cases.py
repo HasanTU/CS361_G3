@@ -1,7 +1,8 @@
 """Application use cases coordinating Document entities and abstract ports."""
 
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from backend_v2.shared.domain.directory_user import (
     DirectoryUser,
@@ -10,6 +11,7 @@ from backend_v2.shared.domain.directory_user import (
 )
 from backend_v2.shared.domain.document import Document
 from backend_v2.shared.domain.document_status import DocumentStatus
+from backend_v2.shared.domain.status_log_entry import StatusLogEntry
 from backend_v2.shared.ports.document_repository import DocumentRepositoryPort
 from backend_v2.shared.ports.file_storage import FileStoragePort
 from backend_v2.shared.ports.user_directory import UserDirectoryPort
@@ -194,3 +196,96 @@ class DocumentUseCases:
         document = self.get_document_details(document_id, caller_sub, is_admin=is_admin)
         file_path = self._storage.get_file(document.file_path)
         return file_path, document
+
+    def edit_document(
+        self,
+        document_id: str,
+        caller_sub: str,
+        actor: str,
+        is_admin: bool,
+        title: Optional[str] = None,
+        document_date: Optional[str] = None,
+        sender: Optional[str] = None,
+        receiver: Optional[str] = None,
+        replacement_file_name: Optional[str] = None,
+        replacement_file_bytes: Optional[bytes] = None,
+        replacement_content_type: Optional[str] = None,
+    ) -> Document:
+        """Edit document metadata and optionally replace its stored file (Admin only)."""
+        document = self.get_document_details(document_id, caller_sub, is_admin=is_admin)
+        if not is_admin:
+            raise PermissionError("Admin privilege required to edit documents")
+
+        update_payload: dict[str, Any] = {}
+        if title and title.strip():
+            document.title = title.strip()
+            update_payload["title"] = document.title
+
+        if document_date and document_date.strip():
+            datetime.strptime(document_date.strip(), "%Y-%m-%d")
+            document.document_date = document_date.strip()
+            update_payload["document_date"] = document.document_date
+
+        if sender and sender.strip():
+            document.sender = sender.strip()
+            update_payload["sender"] = document.sender
+
+        if receiver and receiver.strip() and receiver.strip() != document.receiver:
+            users = self._directory_users()
+            resolved_sub = resolve_recipient(receiver, users)
+            document.receiver = receiver.strip()
+            document.assigned_to = [resolved_sub]
+            update_payload["receiver"] = document.receiver
+            update_payload["assigned_to"] = document.assigned_to
+
+        if replacement_file_name and replacement_file_bytes:
+            stored_meta = self._storage.save_file(
+                file_name=replacement_file_name,
+                file_bytes=replacement_file_bytes,
+                content_type=replacement_content_type or "application/octet-stream",
+            )
+            old_path = document.file_path
+            try:
+                self._storage.delete_file(old_path)
+            except Exception:
+                pass
+
+            document.file_path = stored_meta["file_path"]
+            document.file_name = stored_meta["file_name"]
+            document.file_type = stored_meta["file_type"]
+            document.file_size = stored_meta["file_size"]
+
+            update_payload["file_path"] = document.file_path
+            update_payload["file_name"] = document.file_name
+            update_payload["file_type"] = document.file_type
+            update_payload["file_size"] = document.file_size
+
+        entry = StatusLogEntry(
+            status=document.status,
+            changed_by=actor,
+            changed_at=datetime.now(timezone.utc),
+            note="Document details updated",
+        )
+        document.status_history.append(entry)
+        update_payload["status_history"] = [e.to_dict() for e in document.status_history]
+
+        self._repo.update(document.id, update_payload)
+        return document
+
+    def delete_document(
+        self,
+        document_id: str,
+        caller_sub: str,
+        is_admin: bool,
+    ) -> None:
+        """Permanently delete a document record and its binary file from storage (Admin only)."""
+        document = self.get_document_details(document_id, caller_sub, is_admin=is_admin)
+        if not is_admin:
+            raise PermissionError("Admin privilege required to delete documents")
+
+        try:
+            self._storage.delete_file(document.file_path)
+        except Exception:
+            pass
+
+        self._repo.delete(document.id)
