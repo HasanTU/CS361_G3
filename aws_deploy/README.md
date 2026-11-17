@@ -118,6 +118,18 @@ When presenting to your instructor or grader, you can demonstrate the following:
 
 ---
 
+## Load-Test Data (Seed & Clean Up)
+
+Before the load-test class, fill the deployed system with fake accounts and documents,
+then remove them afterwards. See **[LOADTEST.md](LOADTEST.md)**.
+
+```bash
+uv run aws_deploy/loadtest_data.py seed      # 8 test accounts + 500 documents
+uv run aws_deploy/loadtest_data.py cleanup   # remove all load-test data
+```
+
+---
+
 ## How to Teardown (Clean Up)
 
 Whenever you want to completely delete all cloud resources:
