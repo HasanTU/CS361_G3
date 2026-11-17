@@ -273,35 +273,43 @@ def cleanup_query(subs: dict[str, str]) -> dict:
     ]}
 
 
+def select_for_cleanup(documents, subs: dict[str, str]) -> tuple[list[dict], list[dict]]:
+    """Split matching documents into (to_delete, kept).
+
+    A real admin's document that a load-test account was merely added to (alongside
+    real recipients) is kept; everything else matched is test data.
+    """
+    targets = list(documents.find(
+        cleanup_query(subs), {"file_path": 1, "assigned_to": 1, "uploaded_by": 1, "loadtest": 1}
+    ))
+    test_ids = set(subs.values()) | set(LOADTEST_EMAILS)
+    to_delete, kept = [], []
+    for d in targets:
+        assigned = set(d.get("assigned_to") or [])
+        if d.get("loadtest") or d.get("uploaded_by") in test_ids or assigned <= test_ids:
+            to_delete.append(d)
+        else:
+            kept.append(d)
+    return to_delete, kept
+
+
 def status(args):
     session, _, _ = get_aws_session()
     cognito, _, documents, pool_id, _ = connect(session)
     subs = existing_user_subs(cognito, pool_id)
-    print(f"\nload-test accounts present : {len(subs)}/{len(LOADTEST_USERS)}")
-    print(f"seeded documents           : {documents.count_documents({'loadtest': True})}")
-    print(f"documents cleanup would hit: {documents.count_documents(cleanup_query(subs))}")
-    print(f"documents total            : {documents.count_documents({})}")
+    to_delete, kept = select_for_cleanup(documents, subs)
+    print(f"\nload-test accounts present  : {len(subs)}/{len(LOADTEST_USERS)}")
+    print(f"seeded documents            : {documents.count_documents({'loadtest': True})}")
+    print(f"documents cleanup would del.: {len(to_delete)}"
+          + (f" (keeps {len(kept)} real docs shared with test accounts)" if kept else ""))
+    print(f"documents total             : {documents.count_documents({})}")
 
 
 def cleanup(args):
     session, _, _ = get_aws_session()
     cognito, s3, documents, pool_id, bucket = connect(session)
     subs = existing_user_subs(cognito, pool_id)
-    query = cleanup_query(subs)
-
-    targets = list(documents.find(
-        query, {"file_path": 1, "assigned_to": 1, "uploaded_by": 1, "loadtest": 1}
-    ))
-    # A real admin's document that a load-test account was merely added to (alongside
-    # real recipients) is kept; everything else matched is test data.
-    test_ids = set(subs.values()) | set(LOADTEST_EMAILS)
-    to_delete, skipped = [], []
-    for d in targets:
-        assigned = set(d.get("assigned_to") or [])
-        if d.get("loadtest") or d.get("uploaded_by") in test_ids or assigned <= test_ids:
-            to_delete.append(d)
-        else:
-            skipped.append(d)
+    to_delete, skipped = select_for_cleanup(documents, subs)
 
     print(f"\nAbout to delete {len(to_delete)} documents (+ their S3 files) "
           f"and {len(subs)} Cognito accounts.")
