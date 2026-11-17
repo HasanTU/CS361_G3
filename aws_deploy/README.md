@@ -126,6 +126,8 @@ then remove them afterwards. See **[LOADTEST.md](LOADTEST.md)**.
 ```bash
 uv run aws_deploy/loadtest_data.py seed      # 8 test accounts + 500 documents
 uv run aws_deploy/loadtest_data.py cleanup   # remove all load-test data
+uv run aws_deploy/monitoring.py check        # can CloudWatch see our resources?
+uv run aws_deploy/monitoring.py dashboard    # create the load-test dashboard
 ```
 
 ---

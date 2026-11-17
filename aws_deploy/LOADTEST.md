@@ -106,6 +106,56 @@ name (for example `LoadTest User 03`) so new documents stay inside the test data
 > collection with no pagination (`find_all()`). It gets slower as rows grow. Watch the
 > Lambda duration and MongoDB in CloudWatch while the test runs.
 
+## Monitoring with CloudWatch
+
+Script: [`monitoring.py`](monitoring.py)
+
+**Before class**, check that CloudWatch can see our resources. This only reads:
+
+```bash
+uv run aws_deploy/monitoring.py check
+```
+
+It checks:
+- CloudWatch access.
+- Each of the 3 Lambdas (`documents`, `search`, `auth`): memory, timeout, the last 24h of
+  invocations, errors and throttles, and whether its logs exist.
+- The API Gateway URL.
+- The **Lambda account concurrency limit**. Learner Lab accounts have a low cap, so read
+  this number: it's often the first thing that limits scaling.
+
+It ends with `CloudWatch is usable` or lists what's missing. A `WARN` about empty logs
+only means that function hasn't been called yet. Open the website once and run it again.
+
+Then create the dashboard. Run it again any time to update it:
+
+```bash
+uv run aws_deploy/monitoring.py dashboard
+```
+
+It prints the link to the `cs361-g3-loadtest` dashboard. **While Locust runs**, set the
+time range to **15m** and auto-refresh to **10s**. The dashboard shows:
+
+| Row | Widgets | What to look for |
+|---|---|---|
+| API Gateway | requests/min, latency p50/p95/p99, 4xx/5xx | p95 climbing as users increase means something is saturating |
+| Lambda | invocations, duration p95 and max per function | which function is slow: `documents` list is the usual suspect |
+| Lambda scaling | concurrent executions, throttles, errors | **Throttles > 0** means we hit the concurrency cap, not slow code |
+| Logs | cold starts, init time, p95, memory per minute | many cold starts means new containers spinning up; memory near 256 MB means increase it |
+
+How to read the results:
+- **Latency rises, no errors:** slow code or a slow database. Compare Lambda duration
+  with MongoDB Atlas metrics.
+- **Throttles or 429/503 errors:** Lambda concurrency limit. Scaling means more
+  concurrency, not more memory.
+- **5xx errors with duration near the timeout (15–20 s):** the database connection is
+  struggling. Check Atlas **Connections**.
+
+**Not in CloudWatch:**
+- MongoDB Atlas: open the Atlas UI, then your cluster, then **Metrics** (connections,
+  operations, query time).
+- AWS credits left: the Learner Lab page (top bar). There's no API for this.
+
 ## Step 4: Clean up (after class)
 
 ```bash
