@@ -89,18 +89,65 @@ documents) or `loadtest03@example.com` (user, sees only the documents assigned t
 
 ## Step 3: Run the load test (in class)
 
-Use the test accounts in Locust. These are the API calls our users make most often:
+Script: [`locustfile.py`](locustfile.py). Locust must be installed (`locust --version`).
+
+Use the **API URL**, not the website URL. `monitoring.py check` and `deploy_v2.py`
+both print it:
+
+```bash
+locust -f aws_deploy/locustfile.py --host https://<api-id>.execute-api.us-east-1.amazonaws.com
+```
+
+Open **http://localhost:8089**, enter the **number of users** and the **ramp up**
+(users started per second), then press **Start**.
+
+> **Class ground rules:** your own API URL only; test accounts only; about 80% reads and
+> 20% writes; no uploads, no deletes, no paid APIs; **max 80 users, 2 minutes per step**;
+> stop as soon as you cross your line. The locustfile already follows these rules.
+
+Step up and watch the CloudWatch dashboard at each step:
+
+| Step | Users | Ramp up | Run for |
+|---|---|---|---|
+| 1. warm-up | 10 | 2 | 2 min |
+| 2 | 20 | 4 | 2 min |
+| 3 | 40 | 5 | 2 min |
+| 4 | 80 (max) | 10 | 2 min, or stop earlier if errors start or latency jumps |
+
+What each simulated user does:
+- Logs in once with a load-test account. Admins (`AdminUser`, 1 in 4) use 01–02; users
+  (`NormalUser`, 3 in 4) use 03–08.
+- Waits 1–3 s between actions, like a real person.
+- Picks an action. About 40% list, 40% open a document, 20% write. Admins write by
+  editing a `[LOADTEST]` document's sender and date; users write by moving one of
+  their documents to its next status. Nothing is uploaded or deleted.
+
+In the UI, **Statistics** shows each endpoint's p50/p95 and failures, and **Charts**
+shows requests/s and response time as users grow. The point where response time shoots
+up or failures start is your capacity limit. Download the CSVs from the
+**Download Data** tab for the report.
+
+Without the UI (for example, to save results for each round):
+
+```bash
+locust -f aws_deploy/locustfile.py --host https://<api-id>.execute-api.us-east-1.amazonaws.com --headless -u 40 -r 5 -t 2m --csv results/step3
+```
+
+Everything Locust creates belongs to the test accounts, so Step 4 removes it.
+
+These are the endpoints the locustfile calls:
 
 | Action | Type | Endpoint |
 |---|---|---|
 | Log in (once per simulated user) | n/a | `POST /api/v1/auth/login` with JSON `{"email", "password"}`. The response has `token` |
 | View document list | list page | `GET /api/v1/documents` |
 | Open a document | detail page | `GET /api/v1/documents/<id>` |
-| Register a document (admin) | write | `POST /api/v1/documents` (multipart: `title`, `document_date`, `sender`, `receiver`, `file`) |
+| Edit a document (admin) | write | `PATCH /api/v1/documents/<id>` with JSON `{"sender", "document_date"}`, on `[LOADTEST]` documents only |
 | Update status (user) | write | `PATCH /api/v1/documents/<id>/status` with JSON `{"status": "ACKNOWLEDGED"}` |
 
-Send the token as `Authorization: Bearer <token>`. For `receiver`, use a test account's
-name (for example `LoadTest User 03`) so new documents stay inside the test data.
+Send the token as `Authorization: Bearer <token>`. `POST /api/v1/documents` (register
+with a file upload) is a real user action too, but the class rules forbid uploads, so
+the load test doesn't call it.
 
 > **Likely bottleneck:** for admins, `GET /api/v1/documents` loads the **whole**
 > collection with no pagination (`find_all()`). It gets slower as rows grow. Watch the
