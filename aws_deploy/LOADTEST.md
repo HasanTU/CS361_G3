@@ -121,8 +121,8 @@ It checks:
 - Each of the 3 Lambdas (`documents`, `search`, `auth`): memory, timeout, the last 24h of
   invocations, errors and throttles, and whether its logs exist.
 - The API Gateway URL.
-- The **Lambda account concurrency limit**. Learner Lab accounts have a low cap, so read
-  this number: it's often the first thing that limits scaling.
+- The **Lambda account concurrency limit**: how many Lambda containers can run at once,
+  shared by all 3 functions. Our account showed **400**.
 
 It ends with `CloudWatch is usable` or lists what's missing. A `WARN` about empty logs
 only means that function hasn't been called yet. Open the website once and run it again.
@@ -150,6 +150,10 @@ How to read the results:
   concurrency, not more memory.
 - **5xx errors with duration near the timeout (15–20 s):** the database connection is
   struggling. Check Atlas **Connections**.
+
+> **Likely scaling limit: MongoDB, not Lambda.** Each Lambda container opens one MongoDB
+> connection (`maxPoolSize=1`). With up to 400 containers, Atlas M0's limit of about 500
+> connections is close. Watch Atlas **Connections** as the user count goes up.
 
 **Not in CloudWatch:**
 - MongoDB Atlas: open the Atlas UI, then your cluster, then **Metrics** (connections,
